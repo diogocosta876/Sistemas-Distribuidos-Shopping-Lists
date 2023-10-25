@@ -25,6 +25,10 @@ void Server::run()
         else
         {
             dbShard.setField(cmd);
+            // Send a reply to acknowledge the setField command
+            zmq::message_t reply(2); // "OK" as an acknowledgment
+            memcpy(reply.data(), "OK", 2);
+            socket.send(reply, zmq::send_flags::none);
         }
     }
 }

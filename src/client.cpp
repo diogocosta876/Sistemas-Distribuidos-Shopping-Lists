@@ -11,6 +11,10 @@ void Client::setField(const std::string &value)
     zmq::message_t message(value.size());
     memcpy(message.data(), value.c_str(), value.size());
     socket.send(message, zmq::send_flags::none);
+
+    // Receive acknowledgment from server
+    zmq::message_t reply;
+    socket.recv(reply);
 }
 
 std::string Client::getField()

@@ -4,12 +4,14 @@
 #include <iostream>
 #include <thread>
 
+using namespace std;
+
 int main()
 {
     DBShard db;
     Server server(db);
 
-    std::thread serverThread([&server]()
+    thread serverThread([&server]()
                              { server.run(); });
 
     Client client;
