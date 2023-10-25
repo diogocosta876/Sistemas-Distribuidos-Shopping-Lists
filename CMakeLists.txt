@@ -1,7 +1,10 @@
-cmake_minimum_required(VERSION 3.0)
-project(SDLE_proj)  # Replace "YourProjectName" with your actual project name
+cmake_minimum_required(VERSION 3.10)
+project(run)
 
-find_package(cppzmq REQUIRED)
+set(CMAKE_CXX_STANDARD 14)
 
-add_executable(exec hello_world.cpp)  # Replace "YourExecutableName" with the desired executable name
-target_link_libraries(exec cppzmq)
+find_package(cppzmq)
+
+add_executable(run src/main.cpp src/db.cpp src/server.cpp src/client.cpp)
+target_include_directories(run PRIVATE ${cppzmq_INCLUDE_DIR})
+target_link_libraries(run ${cppzmq_LIBRARY})

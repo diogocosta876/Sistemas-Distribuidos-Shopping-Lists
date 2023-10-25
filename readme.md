@@ -6,7 +6,7 @@
    
    This does an out-of-source build and installs the build files.
    
-   Download and unzip the lib, cd to directory:
+   Download and unzip the lib, cd to directory (outside this project directory):
 
    mkdir build
 
@@ -24,7 +24,7 @@
 
     This does an out of source build and installs the build files
 
-    download and unzip the lib, cd to directory
+    download and unzip the lib, cd to directory (outside this project directory):
 
     mkdir build
 
@@ -33,3 +33,13 @@
     cmake ..
 
     sudo make -j4 install
+
+
+## To run project:
+    mkdir build
+    cd build
+    cmake ..
+    make
+    ./run
+
+
