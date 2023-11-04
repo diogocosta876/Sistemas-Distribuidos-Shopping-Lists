@@ -21,8 +21,20 @@ void ShoppingList::displayList() const {
     }
 }
 
-void ShoppingListManager::createList() {
-    lists.push_back(ShoppingList());
+string ShoppingList::getListName()
+{
+    return this->Name;
+}
+
+void ShoppingList::setListName(string newName)
+{
+    this->Name = newName;
+}
+
+void ShoppingListManager::createList(string name) {
+    ShoppingList new_ShoppingList = ShoppingList();
+    new_ShoppingList.setListName(name);
+    lists.push_back(new_ShoppingList);
 }
 
 void ShoppingListManager::addItemToList(const string& item, int listIndex) {
@@ -49,6 +61,11 @@ void ShoppingListManager::displayList(int listIndex) const {
     } else {
         cout << "Invalid list index." << endl;
     }
+}
+
+string ShoppingListManager::getListNameByIndex(int listIndex)
+{
+    return lists[listIndex].getListName();
 }
 
 int ShoppingListManager::getNumLists()

@@ -35,11 +35,20 @@ int Client::displayUI()
 {
     
     ShoppingListManager listManager;
-    int listIndex = 0;
+    int listIndex = -1;
     int choice;
 
     while (true) {
+
         cout << "Shopping List Application" << endl;
+
+        if(listIndex != -1)
+        {
+            cout << "Number of lists: "<< listManager.getNumLists()<< endl;
+            cout << "Selected List: "<<listManager.getListNameByIndex(listIndex)<< endl;
+        }
+
+        
         cout << "1. Create a new list" << endl;
         cout << "2. Add item to list" << endl;
         cout << "3. Clear list" << endl;
@@ -49,31 +58,53 @@ int Client::displayUI()
         cout << "Enter your choice: ";
         cin >> choice;
 
-        if (choice == 1) {
-            listManager.createList();
-        } else if (choice == 2) {
-            string item;
-            cout << "Enter item to add: ";
-            cin.ignore();
-            getline(cin, item);
-            listManager.addItemToList(item, listIndex);
-        } else if (choice == 3) {
-            listManager.clearList(listIndex);
-        } else if (choice == 4) {
-            listManager.displayList(listIndex);
-        } else if (choice == 5) {
-            cout << "Enter list index: ";
-            cin >> listIndex;
-            if (listIndex < 0 || listIndex >= listManager.getNumLists()) {
-                cout << "Invalid list index." << endl;
-                listIndex = 0;
+        string input;
+        if(listManager.getNumLists() == 0 && choice != 1 && choice != 6){
+            
+            cout << "You have no lists"<< endl;
+            
+        }else{
+            if (choice == 1) {
+                cout << "Enter your new list name: "<< endl;
+                cin.ignore();
+                getline(cin,input);
+                listManager.createList(input);
+                listIndex = listManager.getNumLists()-1;
+            } else if (choice == 2) {
+                
+                
+                cout << "Enter item to add: ";
+                cin.ignore();
+                getline(cin, input);
+                listManager.addItemToList(input, listIndex);
+            
+                
+            } else if (choice == 3) {
+                listManager.clearList(listIndex);
+            } else if (choice == 4) {
+                listManager.displayList(listIndex);
+            } else if (choice == 5) {
+               
+                cout << "Enter list index: ";
+                cin >> listIndex;
+                if (listIndex < 0 || listIndex >= listManager.getNumLists()) {
+                    cout << "Invalid list index." << endl;
+                    listIndex = 0;
+                }
+                
+                
+            } else if (choice == 6) {
+                cout << "Terminating This user UI" << endl;
+                break;
+            } else {
+                cout << "Invalid choice. Please try again" << endl;
             }
-        } else if (choice == 6) {
-            cout << "Terminating This user UI" << endl;
-            break;
-        } else {
-            cout << "Invalid choice. Please try again." << endl;
         }
+
+        
+
+        cout << endl;
+        cout << endl;
     }
 
     return 0;
