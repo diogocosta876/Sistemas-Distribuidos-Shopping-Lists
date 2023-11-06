@@ -1,8 +1,9 @@
-#include "server.h"
+#include "MiddleManServer.h"
 #include <iostream>
+using namespace std;
 
-Server::Server(DBShard &db)
-    : dbShard(db), context(1), socket(context, zmq::socket_type::rep)
+Server::Server()
+    : context(1), socket(context, zmq::socket_type::rep)
 {
     socket.bind("tcp://*:5555");
 }
@@ -13,18 +14,17 @@ void Server::run()
     {
         zmq::message_t request;
         socket.recv(request);
-        std::string cmd = std::string(static_cast<char *>(request.data()), request.size());
+        string cmd = string(static_cast<char *>(request.data()), request.size());
 
         if (cmd == "GET")
         {
-            std::string data = dbShard.getField();
+            string data = "gk";
             zmq::message_t reply(data.size());
             memcpy(reply.data(), data.c_str(), data.size());
             socket.send(reply, zmq::send_flags::none);
         }
         else
         {
-            dbShard.setField(cmd);
             // Send a reply to acknowledge the setField command
             zmq::message_t reply(2); // "OK" as an acknowledgment
             memcpy(reply.data(), "OK", 2);

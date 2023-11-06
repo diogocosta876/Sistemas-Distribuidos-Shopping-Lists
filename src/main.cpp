@@ -1,5 +1,5 @@
 #include "db.h"
-#include "server.h"
+#include "MiddleManServer.h"
 #include "client.h"
 #include <iostream>
 #include <thread>

@@ -4,11 +4,10 @@
 
 class Server {
 public:
-    Server(DBShard& db);
+    Server();
     void run();
 
 private:
-    DBShard& dbShard;
     zmq::context_t context;
     zmq::socket_t socket;
 };
