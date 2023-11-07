@@ -1,7 +1,10 @@
 #include "client.h"
 #include "shoppinglist.h"
 #include <iostream>
+#include <filesystem>  // C++17 filesystem library
 
+
+namespace fs = std::filesystem;
 using namespace std;
 
 Client::Client()
@@ -107,6 +110,32 @@ int Client::displayUI()
         cout << endl;
     }
 
+    return 0;
+}
+
+int Client::loadExistingLists() {
+
+
+    std::string directoryPath = "shopping_lists/";
+
+    if (fs::exists(directoryPath) && fs::is_directory(directoryPath)) {
+        for (const fs::directory_entry& entry : fs::directory_iterator(directoryPath)) {
+            std::string fileName = entry.path().filename().string();
+            size_t found = fileName.find("user_" + std::to_string(userId) + "_shopping_list_");
+            if (found != std::string::npos) {
+                // Load and display the shopping list
+                ShoppingList loadedList = loadShoppingListFromJson(entry.path().string());
+
+                std::cout << "Loaded Shopping List: " << loadedList.name << "\n";
+                for (size_t i = 0; i < loadedList.items.size(); ++i) {
+                    const string& item = loadedList.items[i];
+                    std::cout << "Item " << i << ": " << item.name << ", Quantity: " << item.quantity << "\n";
+                }
+            }
+        }
+    } else {
+        std::cerr << "Error: Shopping list directory not found.\n";
+    }
     return 0;
 }
 

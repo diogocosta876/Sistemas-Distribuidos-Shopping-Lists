@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(run)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Debug)  # Set build type to Debug
 find_package(Threads REQUIRED)
 find_package(cppzmq REQUIRED)
