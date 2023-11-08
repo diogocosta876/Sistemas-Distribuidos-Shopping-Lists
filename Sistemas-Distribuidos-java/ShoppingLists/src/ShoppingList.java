@@ -11,6 +11,10 @@ public class ShoppingList {
         this.items = new ArrayList<>();
     }
 
+    public ShoppingList(){
+        this.items = new ArrayList<>();
+    }
+
     public void addItem(Item item) {
         items.add(item);
     }
@@ -26,6 +30,8 @@ public class ShoppingList {
     public String getName() {
         return this.name;
     }
+
+    public void setName(String name){ this.name = name;}
 
     public List<Item> getItems(){
         return this.items;

@@ -13,6 +13,8 @@ public class Client {
 
     public void run() {
 
+
+        listManager.addShoppingList(listManager.loadShoppingListFromFile("./ShoppingLists/lists/lista.txt"));
         while (true) {
 
 
@@ -26,35 +28,49 @@ public class Client {
             System.out.println("2. Select a shopping list");
             System.out.println("3. Add item to the selected list");
             System.out.println("4. Delete item from the selected list");
-            System.out.println("5. Exit");
+            System.out.println("5. Delete current selected list");
+            System.out.println("6. Exit");
             System.out.print("Enter your choice: ");
 
             int choice = scanner.nextInt();
             scanner.nextLine(); // Consume newline
 
-            switch (choice) {
-                case 1:
-                    System.out.print("Enter the name of the shopping list: ");
-                    String listName = scanner.nextLine();
-                    listManager.createShoppingList(listName);
-                    selectedList = listManager.getShoppingLists().get(listManager.getShoppingLists().size()-1);
-                    break;
-                case 2:
-                    selectShoppingList();
-                    break;
-                case 3:
-                    addItemToSelectedList();
-                    break;
-                case 4:
-                    deleteItemFromSelectedList();
-                    break;
-                case 5:
-                    listManager.saveShoppingLists();
-                    System.out.println("Goodbye!");
-                    return;
-                default:
-                    System.out.println("Invalid choice. Please try again.");
+            if(selectedList == null && choice != 2 && choice != 1){
+                System.out.println("No list selected. Please select a list first.");
+            }else{
+                switch (choice) {
+                    case 1:
+                        System.out.print("Enter the name of the shopping list: ");
+                        String listName = scanner.nextLine();
+                        listManager.createShoppingList(listName);
+
+                        selectedList = listManager.getShoppingLists().get(listManager.getShoppingLists().size()-1);
+                        listManager.saveShoppingListToFile(selectedList,"./ShoppingLists/lists/lista.txt");
+                        break;
+                    case 2:
+                        selectShoppingList();
+                        break;
+                    case 3:
+                        addItemToSelectedList();
+                        listManager.saveShoppingListToFile(selectedList,"./ShoppingLists/lists/lista.txt");
+                        break;
+                    case 4:
+                        deleteItemFromSelectedList();
+                        listManager.saveShoppingListToFile(selectedList,"./ShoppingLists/lists/lista.txt");
+                        break;
+                    case 5:
+                        if(selectedList != null){
+                            listManager.deleteShoppingList(selectedList.getName());
+                        }
+                        break;
+                    case 6:
+                        System.out.println("Goodbye!");
+                        return;
+                    default:
+                        System.out.println("Invalid choice. Please try again.");
+                }
             }
+
         }
     }
 
@@ -77,7 +93,6 @@ public class Client {
 
     private void addItemToSelectedList() {
         if (selectedList == null) {
-            System.out.println("No list selected. Please select a list first.");
             return;
         }
 
@@ -94,7 +109,7 @@ public class Client {
 
     private void deleteItemFromSelectedList() {
         if (selectedList == null) {
-            System.out.println("No list selected. Please select a list first.");
+
             return;
         }
 
