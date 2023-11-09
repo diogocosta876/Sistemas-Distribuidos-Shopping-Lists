@@ -9,11 +9,13 @@ public class ShoppingListManager {
 
     public ShoppingListManager() {
         this.shoppingLists = new ArrayList<>();
-        loadShoppingLists();
+
     }
 
-    public void createShoppingList(String listName) {
+    public void createShoppingList(String listName,String userId) {
         ShoppingList shoppingList = new ShoppingList(listName);
+        String listId = generateCustomID(userId);
+        shoppingList.setFilePath(shoppingList.getFilePath()+listId);
         shoppingLists.add(shoppingList);
         System.out.println("Shopping list created: " + listName);
     }
@@ -27,15 +29,32 @@ public class ShoppingListManager {
 
         for (int i = 0; i < lists.size(); i++) {
             if(lists.get(i).getName().equals(listName)){
+                File file = new File(lists.get(i).getFilePath());
+
+                if (file.exists() && file.isFile()) {
+                    if (file.delete()) {
+                        System.out.println("File deleted successfully.");
+                    } else {
+                        System.err.println("Failed to delete the file.");
+                    }
+                } else {
+                    System.err.println("The specified file does not exist or is not a regular file.");
+                }
                 lists.remove(i);
                 break;
 
             }
         }
+
+
     }
 
     public List<ShoppingList> getShoppingLists() {
         return shoppingLists;
+    }
+
+    public void setShoppingLists(List<ShoppingList> shoppingLists){
+        this.shoppingLists = shoppingLists;
     }
 
     public void displayShoppingLists() {
@@ -62,13 +81,11 @@ public class ShoppingListManager {
 
 
 
-    public void loadShoppingLists() {
-        // Implement loading shopping lists from files
-    }
+
 
     public ShoppingList loadShoppingListFromFile(String filePath) {
         ShoppingList shoppingList = new ShoppingList();
-
+        shoppingList.setFilePath(filePath);
         try (Scanner scanner = new Scanner(new File(filePath))) {
             // Read the shopping list name
             if (scanner.hasNextLine()) {
@@ -92,4 +109,40 @@ public class ShoppingListManager {
         return shoppingList;
     }
 
+    public String generateCustomID(String userId) {
+        long currentTime = System.currentTimeMillis();
+
+        int randomValue = (int) (Math.random() * 1000);
+        return "user_" + userId+ "_"  + currentTime  + randomValue+ ".txt";
+    }
+
+    public List<ShoppingList> loadUserShoppingLists(String currentUserId) {
+        String listsDirectory = "./ShoppingLists/lists/";
+        List<ShoppingList> userShoppingLists = new ArrayList<>();
+
+        File directory = new File(listsDirectory);
+        File[] files = directory.listFiles();
+
+        if (files != null) {
+            for (File file : files) {
+                if (file.isFile()) {
+                    String fileName = file.getName();
+
+
+                    if (fileName.contains("user_" + currentUserId)) {
+                        // This file is associated with the current user
+                        ShoppingList shoppingList = loadShoppingListFromFile(listsDirectory+fileName);
+                        userShoppingLists.add(shoppingList);
+                    }
+
+
+                }
+            }
+        }
+
+
+
+        return userShoppingLists.reversed();
+
+    }
 }

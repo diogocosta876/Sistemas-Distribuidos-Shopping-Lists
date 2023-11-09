@@ -1,3 +1,0 @@
-lista
-pao,4
-cadeira,2

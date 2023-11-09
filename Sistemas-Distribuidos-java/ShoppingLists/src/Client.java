@@ -6,15 +6,19 @@ public class Client {
     private ShoppingList selectedList;
     private Scanner scanner;
 
+    private String userId;
+
     public Client() {
         this.listManager = new ShoppingListManager();
         this.scanner = new Scanner(System.in);
+        this.userId = "1";
     }
 
     public void run() {
 
 
-        listManager.addShoppingList(listManager.loadShoppingListFromFile("./ShoppingLists/lists/lista.txt"));
+
+        listManager.setShoppingLists(listManager.loadUserShoppingLists(userId));
         while (true) {
 
 
@@ -35,32 +39,38 @@ public class Client {
             int choice = scanner.nextInt();
             scanner.nextLine(); // Consume newline
 
-            if(selectedList == null && choice != 2 && choice != 1){
+            if(selectedList == null && choice != 1 && choice != 2 && choice != 6){
                 System.out.println("No list selected. Please select a list first.");
             }else{
                 switch (choice) {
                     case 1:
                         System.out.print("Enter the name of the shopping list: ");
                         String listName = scanner.nextLine();
-                        listManager.createShoppingList(listName);
-
+                        listManager.createShoppingList(listName,userId);
                         selectedList = listManager.getShoppingLists().get(listManager.getShoppingLists().size()-1);
-                        listManager.saveShoppingListToFile(selectedList,"./ShoppingLists/lists/lista.txt");
+                        listManager.saveShoppingListToFile(selectedList, selectedList.getFilePath());
                         break;
                     case 2:
-                        selectShoppingList();
+                        if(!listManager.getShoppingLists().isEmpty())
+                        {
+                            selectShoppingList();
+                        }else{
+                            System.out.println("No list to show.");
+                        }
+
                         break;
                     case 3:
                         addItemToSelectedList();
-                        listManager.saveShoppingListToFile(selectedList,"./ShoppingLists/lists/lista.txt");
+                        listManager.saveShoppingListToFile(selectedList, selectedList.getFilePath());
                         break;
                     case 4:
                         deleteItemFromSelectedList();
-                        listManager.saveShoppingListToFile(selectedList,"./ShoppingLists/lists/lista.txt");
+                        listManager.saveShoppingListToFile(selectedList, selectedList.getFilePath());
                         break;
                     case 5:
                         if(selectedList != null){
                             listManager.deleteShoppingList(selectedList.getName());
+                            selectedList = null;
                         }
                         break;
                     case 6:
