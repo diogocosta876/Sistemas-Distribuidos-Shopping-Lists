@@ -1,6 +1,7 @@
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.Scanner;
 
 
@@ -110,10 +111,12 @@ public class ShoppingListManager {
     }
 
     public String generateCustomID(String userId) {
-        long currentTime = System.currentTimeMillis();
 
-        int randomValue = (int) (Math.random() * 1000);
-        return "user_" + userId+ "_"  + currentTime  + randomValue+ ".txt";
+        long seed = System.currentTimeMillis();
+        Random random = new Random(seed);
+
+
+        return "user_" + userId+ "_"  + random.nextInt()  + random.nextInt()+ ".txt";
     }
 
     public List<ShoppingList> loadUserShoppingLists(String currentUserId) {
