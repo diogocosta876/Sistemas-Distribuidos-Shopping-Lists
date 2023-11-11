@@ -1,5 +1,6 @@
+package org.example;
+
 import java.util.Scanner;
-import java.util.List;
 
 public class Client {
     private ShoppingListManager listManager;

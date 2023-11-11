@@ -1,4 +1,0 @@
-grande lista
-pao,3
-bolachas,3
-detergente,1
