@@ -85,9 +85,6 @@ public class ShoppingListManager {
     }
 
 
-
-
-
     public ShoppingList loadShoppingListFromFile(String filePath) {
         ShoppingList shoppingList = new ShoppingList();
         shoppingList.setFilePath(filePath);
@@ -120,11 +117,11 @@ public class ShoppingListManager {
         Random random = new Random(seed);
 
 
-        return "user_" + userId+ "_"  + random.nextInt()  + random.nextInt()+ ".txt";
+        return "user_" + userId+ "_"  + Math.abs(random.nextInt())  + Math.abs(random.nextInt())+ ".txt";
     }
 
     public List<ShoppingList> loadUserShoppingLists(String currentUserId) {
-        String listsDirectory = "./ShoppingLists/lists/";
+        String listsDirectory = "./lists/";
         List<ShoppingList> userShoppingLists = new ArrayList<>();
 
         File directory = new File(listsDirectory);

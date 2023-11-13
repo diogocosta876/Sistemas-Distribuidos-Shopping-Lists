@@ -9,5 +9,9 @@ public class Main {
         
         Client client = new Client();
         client.run();
+
+        MiddleManServer loadBalancer = new MiddleManServer(5000);
+        loadBalancer.run();
+
     }
 }

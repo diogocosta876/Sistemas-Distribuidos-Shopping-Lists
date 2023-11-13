@@ -12,7 +12,7 @@ public class ShoppingList {
     public ShoppingList(String name) {
         this.name = name;
         this.items = new ArrayList<>();
-        this.filePath = "./ShoppingLists/lists/";
+        this.filePath = "./lists/";
     }
 
     public ShoppingList(){
