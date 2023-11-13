@@ -2,3 +2,9 @@
 build/exec
 build/*
 cmake-build-debug/*
+.idea/Proj SDLE.iml
+.idea/vcs.xml
+.idea/workspace.xml
+.idea/modules.xml
+java-maven-project/.idea/misc.xml
+java-maven-project/.idea/misc.xml

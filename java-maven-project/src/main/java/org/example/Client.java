@@ -2,7 +2,9 @@ package org.example;
 
 import jdk.jfr.Label;
 import org.jetbrains.annotations.NotNull;
+import org.zeromq.SocketType;
 import org.zeromq.ZMQ;
+import org.zeromq.ZContext;
 
 import java.util.Scanner;
 
@@ -21,8 +23,8 @@ public class Client {
         this.listManager = new ShoppingListManager();
         this.scanner = new Scanner(System.in);
         this.userId = "1";
-        ZMQ.Context context = ZMQ.context(1);
-        this.socket = context.socket(ZMQ.REQ);
+        ZContext context = new ZContext(1);
+        this.socket = context.createSocket(SocketType.REQ);
         this.socket.connect(serverAddress);
     }
 

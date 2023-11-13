@@ -1,13 +1,17 @@
 package org.example;
 
+import org.zeromq.SocketType;
+import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
+
+import java.util.Arrays;
 
 public class MiddleManServer {
     private final ZMQ.Socket socket;
 
     public MiddleManServer(int port) {
-        ZMQ.Context context = ZMQ.context(1);
-        this.socket = context.socket(ZMQ.ROUTER);
+        ZContext context = new ZContext(1);
+        this.socket = context.createSocket(SocketType.REP);
         this.socket.bind("tcp://*:" + port);
     }
 
@@ -18,17 +22,17 @@ public class MiddleManServer {
 
             System.out.println("Server Running");
             // Receive client request
-            byte[] clientId = socket.recv(0);
+            //byte[] clientId = socket.recv(0);
             byte[] request = socket.recv(0);
 
             String Nrequest = new String(request, ZMQ.CHARSET);
-            System.out.println("Request: "+Nrequest);
+            System.out.println("Request:  "+ Nrequest);
 
             // Simulate processing
             String response = "Response from Load Balancer";
 
             // Reply to the client
-            socket.sendMore(clientId);
+            //socket.sendMore(clientId);
             socket.send(response.getBytes(ZMQ.CHARSET), 0);
         }
     }
