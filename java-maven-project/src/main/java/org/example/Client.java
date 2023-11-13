@@ -1,5 +1,9 @@
 package org.example;
 
+import jdk.jfr.Label;
+import org.jetbrains.annotations.NotNull;
+import org.zeromq.ZMQ;
+
 import java.util.Scanner;
 
 public class Client {
@@ -9,10 +13,47 @@ public class Client {
 
     private String userId;
 
+    private final ZMQ.Socket socket;
+
+    private final String serverAddress = "tcp://localhost:5555"; // this later needs to be setup dynamically
+
     public Client() {
         this.listManager = new ShoppingListManager();
         this.scanner = new Scanner(System.in);
         this.userId = "1";
+        ZMQ.Context context = ZMQ.context(1);
+        this.socket = context.socket(ZMQ.REQ);
+        this.socket.connect(serverAddress);
+    }
+
+
+    // maybe request and receive should be on same function on the client
+    public void sendRequest(@NotNull String request) {
+        // Send request to load balancer
+        socket.send(request.getBytes(ZMQ.CHARSET), 0);
+    }
+
+    public String receiveReply() {
+        // Receive the reply from the load balancer
+        System.out.println("bef");
+        byte[] reply = socket.recv(0);
+        System.out.println("aft");
+
+
+        // Process the reply if needed
+        return new String(reply, ZMQ.CHARSET);
+    }
+
+    public int attemptHandshake(){
+        System.out.println("Attempting handshake..");
+
+        sendRequest("hello");
+
+        String reply = receiveReply();
+        System.out.println("Received reply from Load Balancer: " + reply);
+
+
+        return 0;
     }
 
     public void run() {

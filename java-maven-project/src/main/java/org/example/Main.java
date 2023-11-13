@@ -8,10 +8,9 @@ public class Main {
 
         
         Client client = new Client();
-        client.run();
+        client.attemptHandshake();
 
-        MiddleManServer loadBalancer = new MiddleManServer(5000);
-        loadBalancer.run();
+
 
     }
 }
