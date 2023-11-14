@@ -1,18 +1,16 @@
-package org.example;
+package org.example.ShoppingList;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class ShoppingList {
     private String name;
+    private String userId;
     private List<Item> items;
-
-    private String filePath;
 
     public ShoppingList(String name) {
         this.name = name;
         this.items = new ArrayList<>();
-        this.filePath = "./lists/";
     }
 
     public ShoppingList(){
@@ -36,14 +34,6 @@ public class ShoppingList {
     }
 
     public void setName(String name){ this.name = name;}
-
-    public String getFilePath(){
-        return this.filePath;
-    }
-
-    public void setFilePath(String filePath){
-        this.filePath = filePath;
-    }
 
     public List<Item> getItems(){
         return this.items;

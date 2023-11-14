@@ -1,28 +1,29 @@
 package org.example;
 
-import jdk.jfr.Label;
+import org.example.ShoppingList.Item;
+import org.example.ShoppingList.ShoppingList;
+import org.example.ShoppingList.ShoppingListManager;
+import org.example.Client.User;
 import org.jetbrains.annotations.NotNull;
 import org.zeromq.SocketType;
 import org.zeromq.ZMQ;
 import org.zeromq.ZContext;
 
+import java.io.IOException;
 import java.util.Scanner;
 
-public class Client {
+public class RunClient {
     private ShoppingListManager listManager;
     private ShoppingList selectedList;
     private Scanner scanner;
-
-    private String userId;
 
     private final ZMQ.Socket socket;
 
     private final String serverAddress = "tcp://localhost:5555"; // this later needs to be setup dynamically
 
-    public Client() {
-        this.listManager = new ShoppingListManager();
+    public RunClient() {
+        this.listManager = null;
         this.scanner = new Scanner(System.in);
-        this.userId = "1";
         ZContext context = new ZContext(1);
         this.socket = context.createSocket(SocketType.REQ);
         this.socket.connect(serverAddress);
@@ -59,10 +60,15 @@ public class Client {
     }
 
     public void run() {
+        User user = new User();
+        try {
+            user.authenticate();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
+        this.listManager = new ShoppingListManager(user);
 
-
-        listManager.setShoppingLists(listManager.loadUserShoppingLists(userId));
         while (true) {
 
 
@@ -90,9 +96,8 @@ public class Client {
                     case 1:
                         System.out.print("Enter the name of the shopping list: ");
                         String listName = scanner.nextLine();
-                        listManager.createShoppingList(listName,userId);
-                        selectedList = listManager.getShoppingLists().get(listManager.getShoppingLists().size()-1);
-                        listManager.saveShoppingListToJson(selectedList, selectedList.getFilePath());
+                        this.listManager.createShoppingList(listName);
+                        selectedList = this.listManager.getShoppingLists().get(this.listManager.getShoppingLists().size()-1);
                         break;
                     case 2:
                         if(!listManager.getShoppingLists().isEmpty())
@@ -101,15 +106,14 @@ public class Client {
                         }else{
                             System.out.println("No list to show.");
                         }
-
                         break;
                     case 3:
                         addItemToSelectedList();
-                        listManager.saveShoppingListToJson(selectedList, selectedList.getFilePath());
+                        this.listManager.updateList(selectedList);
                         break;
                     case 4:
                         deleteItemFromSelectedList();
-                        listManager.saveShoppingListToJson(selectedList, selectedList.getFilePath());
+                        listManager.updateList(selectedList);
                         break;
                     case 5:
                         if(selectedList != null){
@@ -137,7 +141,6 @@ public class Client {
 
         if (choice > 0 && choice <= listManager.getShoppingLists().size()) {
             selectedList = listManager.getShoppingLists().get(choice - 1);
-            System.out.println("Selected list: " + selectedList.getName());
         } else if (choice == 0) {
             System.out.println("Canceled selection.");
         } else {
@@ -184,7 +187,7 @@ public class Client {
 
 
     public static void main(String[] args) {
-        Client client = new Client();
+        RunClient client = new RunClient();
         client.attemptHandshake();
         client.run();
     }
