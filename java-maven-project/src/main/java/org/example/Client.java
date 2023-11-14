@@ -92,7 +92,7 @@ public class Client {
                         String listName = scanner.nextLine();
                         listManager.createShoppingList(listName,userId);
                         selectedList = listManager.getShoppingLists().get(listManager.getShoppingLists().size()-1);
-                        listManager.saveShoppingListToFile(selectedList, selectedList.getFilePath());
+                        listManager.saveShoppingListToJson(selectedList, selectedList.getFilePath());
                         break;
                     case 2:
                         if(!listManager.getShoppingLists().isEmpty())
@@ -105,11 +105,11 @@ public class Client {
                         break;
                     case 3:
                         addItemToSelectedList();
-                        listManager.saveShoppingListToFile(selectedList, selectedList.getFilePath());
+                        listManager.saveShoppingListToJson(selectedList, selectedList.getFilePath());
                         break;
                     case 4:
                         deleteItemFromSelectedList();
-                        listManager.saveShoppingListToFile(selectedList, selectedList.getFilePath());
+                        listManager.saveShoppingListToJson(selectedList, selectedList.getFilePath());
                         break;
                     case 5:
                         if(selectedList != null){

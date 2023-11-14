@@ -1,12 +1,11 @@
 package org.example;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.PrintWriter;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
+import com.google.gson.Gson;
 
 
 public class ShoppingListManager {
@@ -70,45 +69,26 @@ public class ShoppingListManager {
         }
     }
 
-    public void saveShoppingListToFile(ShoppingList shoppingList, String filePath) {
-        try (PrintWriter writer = new PrintWriter(filePath)) {
-            // Write the shopping list name to the file
-            writer.println(shoppingList.getName());
+    public void saveShoppingListToJson(ShoppingList shoppingList, String filePath) {
+        Gson gson = new Gson();
+        String json = gson.toJson(shoppingList);
 
-            // Write each shopping item to the file
-            for (Item item : shoppingList.getItems()) {
-                writer.println(item.getName() + "," + item.getQuantity());
-            }
+        try (PrintWriter writer = new PrintWriter(filePath)) {
+            writer.write(json);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
     }
 
 
-    public ShoppingList loadShoppingListFromFile(String filePath) {
-        ShoppingList shoppingList = new ShoppingList();
-        shoppingList.setFilePath(filePath);
-        try (Scanner scanner = new Scanner(new File(filePath))) {
-            // Read the shopping list name
-            if (scanner.hasNextLine()) {
-                shoppingList.setName(scanner.nextLine());
-            }
-
-            // Read and add each shopping item
-            while (scanner.hasNextLine()) {
-                String line = scanner.nextLine();
-                String[] parts = line.split(",");
-                if (parts.length == 2) {
-                    String itemName = parts[0];
-                    int itemQuantity = Integer.parseInt(parts[1]);
-                    shoppingList.addItem(new Item(itemName, itemQuantity));
-                }
-            }
-        } catch (FileNotFoundException e) {
+    public ShoppingList loadShoppingListFromJson(String filePath) {
+        Gson gson = new Gson();
+        try (Reader reader = new FileReader(filePath)) {
+            return gson.fromJson(reader, ShoppingList.class);
+        } catch (IOException e) {
             e.printStackTrace();
+            return null;
         }
-
-        return shoppingList;
     }
 
     public String generateCustomID(String userId) {
@@ -134,8 +114,7 @@ public class ShoppingListManager {
 
 
                     if (fileName.contains("user_" + currentUserId)) {
-                        // This file is associated with the current user
-                        ShoppingList shoppingList = loadShoppingListFromFile(listsDirectory+fileName);
+                        ShoppingList shoppingList = loadShoppingListFromJson(listsDirectory+fileName);
                         userShoppingLists.add(shoppingList);
                     }
 
