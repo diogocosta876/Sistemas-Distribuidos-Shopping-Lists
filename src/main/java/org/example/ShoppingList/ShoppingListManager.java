@@ -77,17 +77,6 @@ public class ShoppingListManager {
         user.saveToJson();
     }
 
-
-    public ShoppingList loadShoppingListFromJson(String filePath) {
-        Gson gson = new Gson();
-        try (Reader reader = new FileReader(filePath)) {
-            return gson.fromJson(reader, ShoppingList.class);
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-
     public String generateCustomID(String userId) {
 
         long seed = System.currentTimeMillis();
@@ -95,35 +84,6 @@ public class ShoppingListManager {
 
 
         return "user_" + userId+ "_"  + Math.abs(random.nextInt())  + Math.abs(random.nextInt())+ ".txt";
-    }
-
-    public List<ShoppingList> loadUserShoppingLists(String currentUserId) {
-        String listsDirectory = "./lists/";
-        List<ShoppingList> userShoppingLists = new ArrayList<>();
-
-        File directory = new File(listsDirectory);
-        File[] files = directory.listFiles();
-
-        if (files != null) {
-            for (File file : files) {
-                if (file.isFile()) {
-                    String fileName = file.getName();
-
-
-                    if (fileName.contains("user_" + currentUserId)) {
-                        ShoppingList shoppingList = loadShoppingListFromJson(listsDirectory+fileName);
-                        userShoppingLists.add(shoppingList);
-                    }
-
-
-                }
-            }
-        }
-
-
-
-        return userShoppingLists.reversed();
-
     }
 
     public void updateList(ShoppingList selectedList) {

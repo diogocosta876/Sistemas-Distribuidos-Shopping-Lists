@@ -8,57 +8,66 @@ import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
 
 public class RunRouterServer {
-    private ZMQ.Socket socket;
+    private ZMQ.Socket clientSocket;
+    private ZMQ.Socket dbSocket;
     private final Gson gson;
 
     public RunRouterServer(int port) {
         ZContext context = new ZContext(1);
-        this.socket = context.createSocket(SocketType.REP);
-        this.socket.bind("tcp://*:" + port);
+
+        this.clientSocket = context.createSocket(SocketType.REP);
+        this.clientSocket.bind("tcp://*:" + port);
+
+        this.dbSocket = context.createSocket(SocketType.REQ);
+        String dbServerAddress = "tcp://localhost:5556";
+        this.dbSocket.connect(dbServerAddress);
         gson = new Gson();
     }
 
     public void run() {
         System.out.println("Server Running");
         while (!Thread.currentThread().isInterrupted()) {
-            byte[] requestBytes = socket.recv(0);
+            byte[] requestBytes = clientSocket.recv(0);
             String requestString = new String(requestBytes, ZMQ.CHARSET);
             Packet requestPacket = gson.fromJson(requestString, Packet.class);
 
-            System.out.println("Received request: " + requestPacket);
+            System.out.println("[LOG] Received request: " + requestPacket);
 
             Packet responsePacket = processRequest(requestPacket);
 
             String serializedResponse = gson.toJson(responsePacket);
-            socket.send(serializedResponse.getBytes(ZMQ.CHARSET), 0);
+            clientSocket.send(serializedResponse.getBytes(ZMQ.CHARSET), 0);
+            System.out.println("[LOG] Sent Client response: " + responsePacket);
         }
     }
 
     private Packet processRequest(Packet requestPacket) {
-        States state = requestPacket.getState();
-        String message = requestPacket.getMessageBody();
+        switch (requestPacket.getState()) {
+            case HANDSHAKE_INITIATED:
+                System.out.println("[LOG] Handshake initiated by client.");
+                return new Packet(States.HANDSHAKE_COMPLETED, "[LOG] Handshake successful");
 
-        return switch (state) {
-            case HANDSHAKE_INITIATED -> {
-                System.out.println("Handshake initiated by client.");
-                yield new Packet(States.HANDSHAKE_COMPLETED, "Handshake successful");
-            }
-            case LIST_UPDATE_REQUESTED -> {
-                System.out.println("List update requested.");
-                ShoppingList list = gson.fromJson(message, ShoppingList.class);
-                list.displayList();
-                yield new Packet(States.LIST_UPDATE_COMPLETED, "List updated successfully");
-            }
-            case LIST_DELETE_REQUESTED -> {
-                System.out.println("List deletion requested: " + message);
-                yield new Packet(States.LIST_DELETE_COMPLETED, "List deleted successfully");
-            }
-            default -> {
-                System.out.println("Invalid request state: " + state);
-                yield new Packet(States.LIST_UPDATE_FAILED, "Invalid request state");
-            }
-        };
+            case LIST_UPDATE_REQUESTED:
+            case LIST_DELETE_REQUESTED:
+                return forwardRequestToDBServer(requestPacket);
+
+            default:
+                System.out.println("Invalid request state: " + requestPacket.getState());
+                return new Packet(States.LIST_UPDATE_FAILED, "Invalid request state");
+        }
     }
+
+    private Packet forwardRequestToDBServer(Packet requestPacket) {
+        String requestString = gson.toJson(requestPacket);
+        dbSocket.send(requestString.getBytes(ZMQ.CHARSET), 0);
+        System.out.println("[LOG] Request forwarded to DB server");
+
+        byte[] responseBytes = dbSocket.recv(0);
+        String responseString = new String(responseBytes, ZMQ.CHARSET);
+        System.out.println("[LOG] Received response from DB server: " + responseString);
+        return gson.fromJson(responseString, Packet.class);
+    }
+
 
     public static void main(String[] args) {
         RunRouterServer loadBalancer = new RunRouterServer(5555);

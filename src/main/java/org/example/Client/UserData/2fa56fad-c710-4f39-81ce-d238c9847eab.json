@@ -2,14 +2,24 @@
   "uuid": "2fa56fad-c710-4f39-81ce-d238c9847eab",
   "lists": [
     {
-      "name": "conti",
-      "uuid": "5409bf01-ce8c-4f1b-87d8-530171f2d264",
+      "name": "teste",
+      "uuid": "5363b4d5-bc3a-46bc-bf25-7eb7ae49849a",
+      "items": []
+    },
+    {
+      "name": "pingo doce",
+      "uuid": "98d30534-b98d-45a0-879b-fd80fbc5b75b",
       "items": [
         {
-          "name": "bananas",
+          "name": "cebolas",
           "quantity": 1
         }
       ]
+    },
+    {
+      "name": "conti",
+      "uuid": "df0fe3b5-4336-4f7a-9abb-5b4b25513777",
+      "items": []
     }
   ]
 }

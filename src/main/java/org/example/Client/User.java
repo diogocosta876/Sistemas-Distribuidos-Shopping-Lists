@@ -44,13 +44,11 @@ public class User {
         System.out.println("Choose an option: ");
         int option = Integer.parseInt(reader.readLine());
 
-        // Option to exit
         if (option == 0) {
             System.out.println("Exiting...");
             return false;
         }
 
-        // Option to create a new user
         if (option == 1) {
             this.uuid = UUID.randomUUID();
             saveToJson();
@@ -58,13 +56,13 @@ public class User {
             return true;
         }
 
-        // Existing user selection
         int userIndex = option - 2;
         if (userIndex < listOfFiles.length) {
             String userId = listOfFiles[userIndex].getName().replace(".json", "");
             User user = loadFromJson(userId);
             assert user != null;
             this.uuid = user.uuid;
+            this.lists = user.lists;
             System.out.println("Authentication successful for user: " + this.uuid + "\n");
 
             return true;
