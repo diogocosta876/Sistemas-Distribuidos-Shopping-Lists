@@ -2,15 +2,19 @@ package org.example.ShoppingList;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class ShoppingList {
     private String name;
     private String userId;
+
+    private UUID uuid;
     private List<Item> items;
 
     public ShoppingList(String name) {
         this.name = name;
         this.items = new ArrayList<>();
+        this.uuid = java.util.UUID.randomUUID();
     }
 
     public ShoppingList(){

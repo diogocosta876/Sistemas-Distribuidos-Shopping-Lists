@@ -59,24 +59,17 @@ public class RunClient {
         return 0;
     }
 
-    public void run() {
+    public void run() throws IOException {
         User user = new User();
-        try {
-            user.authenticate();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        if (!user.authenticate()) return;
 
         this.listManager = new ShoppingListManager(user);
 
         while (true) {
-
-
             if(selectedList != null){
                 System.out.println("Selected List: "+this.selectedList.getName());
                 this.selectedList.displayList();
             }
-
 
             System.out.println("1. Create a new shopping list");
             System.out.println("2. Select a shopping list");

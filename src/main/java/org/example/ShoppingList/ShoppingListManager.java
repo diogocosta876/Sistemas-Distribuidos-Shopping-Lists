@@ -18,13 +18,13 @@ public class ShoppingListManager {
     public ShoppingListManager(User user){
         this.shoppingLists = new ArrayList<>();
         this.user = user;
-        this.userDirectoryPath = "./src/main/java/org/example/Client/UserData/" + user.userId + ".json";
+        this.userDirectoryPath = "./src/main/java/org/example/Client/UserData/" + user.uuid + ".json";
         this.shoppingLists = user.getLists();
     }
 
     public void createShoppingList(String listName) {
         ShoppingList shoppingList = new ShoppingList(listName);
-        String listId = generateCustomID(user.userId);
+        String listId = generateCustomID(user.uuid.toString());
         shoppingLists.add(shoppingList);
         this.user.setLists(shoppingLists);
         System.out.println("Shopping list created: " + listName);

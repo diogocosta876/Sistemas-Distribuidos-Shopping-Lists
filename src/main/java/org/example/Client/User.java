@@ -12,54 +12,65 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 
 public class User {
 
-    public String userId; //change to private later and implement getters
-    public String password; // Passwords should be hashed in production!
+    public UUID uuid;
     private List<ShoppingList> lists;
 
     public User() {
         this.lists = new ArrayList<ShoppingList>();
     }
 
-    public User(String userId, String password) {
-        this.userId = userId;
-        this.password = password;
-        this.lists = new ArrayList<ShoppingList>();
-    }
-
     public boolean authenticate() throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
 
-        System.out.println("Enter your unique username: ");
-        String userId = reader.readLine();
-        String userFilePath = "./src/main/java/org/example/Client/UserData/" + userId + ".json";
+        // Show user available options
+        System.out.println("\nSelect an option for authentication:");
+        System.out.println("\t0. Exit");
+        System.out.println("\t1. Create new user");
 
-        if (Files.exists(Paths.get(userFilePath))) {
-            // User JSON exists, so try to log in
+        File folder = new File("./src/main/java/org/example/Client/UserData/");
+        File[] listOfFiles = folder.listFiles();
+
+        System.out.println("Available users:");
+        // List available users
+        for (int i = 0; i < Objects.requireNonNull(listOfFiles).length; i++) {
+            System.out.println("\t" + (i + 2) + ". " + listOfFiles[i].getName().replace(".json", ""));
+        }
+
+        System.out.println("Choose an option: ");
+        int option = Integer.parseInt(reader.readLine());
+
+        // Option to exit
+        if (option == 0) {
+            System.out.println("Exiting...");
+            return false;
+        }
+
+        // Option to create a new user
+        if (option == 1) {
+            this.uuid = UUID.randomUUID();
+            saveToJson();
+            System.out.println("Registration successful for user: " + this.uuid);
+            return true;
+        }
+
+        // Existing user selection
+        int userIndex = option - 2;
+        if (userIndex < listOfFiles.length) {
+            String userId = listOfFiles[userIndex].getName().replace(".json", "");
             User user = loadFromJson(userId);
-            if (user == null) {
-                System.out.println("Failed to load user data.");
-                return false;
-            }
+            assert user != null;
+            this.uuid = user.uuid;
+            System.out.println("Authentication successful for user: " + this.uuid + "\n");
 
-            this.userId = user.userId;
-            this.password = user.password;
-            this.lists = user.lists;
-            System.out.println("Session refreshed for user: " + user.userId);
             return true;
         } else {
-            // User JSON does not exist, so register a new user
-            System.out.println("No such user found. Let's register you.");
-            System.out.println("Input your password: ");
-            String password = reader.readLine();
-
-            this.userId = userId;
-            this.password = password; // In production, hash the password
-            saveToJson();
-            System.out.println("Registration successful.");
-            return true;
+            System.out.println("Invalid option selected.");
+            return false;
         }
     }
 
@@ -89,7 +100,7 @@ public class User {
         System.out.println("Saving user data...");
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         String json = gson.toJson(this);
-        String userFilePath = "./src/main/java/org/example/Client/UserData/" + this.userId + ".json";
+        String userFilePath = "./src/main/java/org/example/Client/UserData/" + this.uuid + ".json";
 
         try {
             Files.createDirectories(Paths.get(userFilePath).getParent());
