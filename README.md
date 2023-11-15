@@ -16,3 +16,5 @@ In order to run multiple clients at a time it's advisable to create these Run/De
 Make sure to allow multiple instances for every one:
 
 ![Alt text](docs/readme_images/image.png)
+
+Make sure to run the DB first, then the Router and only then the client
