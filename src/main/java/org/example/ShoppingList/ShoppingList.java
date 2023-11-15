@@ -7,7 +7,6 @@ import java.util.UUID;
 public class ShoppingList {
     private String name;
     private String userId;
-
     private UUID uuid;
     private List<Item> items;
 
@@ -36,8 +35,13 @@ public class ShoppingList {
     public String getName() {
         return this.name;
     }
+    public UUID getUUID() {
+        return uuid;
+    }
 
-    public void setName(String name){ this.name = name;}
+    public void setName(String name){
+        this.name = name;
+    }
 
     public List<Item> getItems(){
         return this.items;

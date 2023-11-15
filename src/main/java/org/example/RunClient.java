@@ -14,11 +14,14 @@ import org.zeromq.ZContext;
 
 import java.io.IOException;
 import java.util.Scanner;
+import java.util.UUID;
 
 public class RunClient {
     private ShoppingListManager listManager;
     private ShoppingList selectedList;
     private final Scanner scanner;
+    private boolean online;
+    private final Gson gson = new Gson();
 
     private final ZMQ.Socket socket;
 
@@ -27,30 +30,24 @@ public class RunClient {
         this.scanner = new Scanner(System.in);
         ZContext context = new ZContext(1);
         this.socket = context.createSocket(SocketType.REQ);
-        // this later needs to be setup dynamically
-        String serverAddress = "tcp://localhost:5555";
+        String serverAddress = "tcp://localhost:5555"; // this later needs to be setup dynamically
         this.socket.connect(serverAddress);
     }
 
 
-    // Send a request to the router with a serialized Packet object
     public void sendRequest(@NotNull Packet packet) {
-        Gson gson = new Gson();
         String serializedPacket = gson.toJson(packet);
-
         socket.send(serializedPacket.getBytes(ZMQ.CHARSET), 0);
     }
 
-    // Receive the reply from the router and deserialize to a Packet object
     public Packet receiveReply() {
         byte[] replyBytes = socket.recv(0);
         String replyString = new String(replyBytes, ZMQ.CHARSET);
 
-        Gson gson = new Gson();
         return gson.fromJson(replyString, Packet.class);
     }
 
-    public int attemptHandshake(){
+    public boolean attemptHandshake(){
         System.out.println("[LOG] Pinging Server..");
 
         sendRequest(new Packet(States.HANDSHAKE_INITIATED, null));
@@ -58,10 +55,10 @@ public class RunClient {
         Packet reply = receiveReply();
         if (reply.getState() == States.HANDSHAKE_COMPLETED) {
             System.out.println("[LOG] Connection with server established.");
-            return 1;
+            return true;
         }
 
-        return 0;
+        return false;
     }
 
     public void run() throws IOException {
@@ -96,6 +93,7 @@ public class RunClient {
                         String listName = scanner.nextLine();
                         this.listManager.createShoppingList(listName);
                         selectedList = this.listManager.getShoppingLists().get(this.listManager.getShoppingLists().size()-1);
+                        synchronizeShoppingList(selectedList);
                         break;
                     case 2:
                         if(!listManager.getShoppingLists().isEmpty())
@@ -108,13 +106,16 @@ public class RunClient {
                     case 3:
                         addItemToSelectedList();
                         this.listManager.updateList(selectedList);
+                        synchronizeShoppingList(selectedList);
                         break;
                     case 4:
                         deleteItemFromSelectedList();
                         listManager.updateList(selectedList);
+                        synchronizeShoppingList(selectedList);
                         break;
                     case 5:
                         listManager.deleteShoppingList(selectedList.getName());
+                        synchronizeDeleteShoppingList(selectedList.getUUID());
                         selectedList = null;
                         break;
                     case 6:
@@ -153,7 +154,7 @@ public class RunClient {
         String itemName = scanner.nextLine();
         System.out.print("Enter the item quantity: ");
         int itemQuantity = scanner.nextInt();
-        scanner.nextLine(); // Consume newline
+        scanner.nextLine();
 
         Item item = new Item(itemName, itemQuantity);
         selectedList.addItem(item);
@@ -162,11 +163,8 @@ public class RunClient {
 
     private void deleteItemFromSelectedList() {
         if (selectedList == null) {
-
             return;
         }
-
-
         System.out.print("Enter the number of the item to delete (0 to cancel): ");
         int choice = scanner.nextInt();
         scanner.nextLine(); // Consume newline
@@ -181,10 +179,52 @@ public class RunClient {
         }
     }
 
+    public void synchronizeDeleteShoppingList(UUID listUuid) throws IOException {
+        if (listUuid == null) {
+            System.out.println("Invalid list identifier.");
+            return;
+        }
+        String listUuidJson = gson.toJson(listUuid);
+
+        sendRequest(new Packet(States.LIST_DELETE_REQUESTED, listUuidJson));
+        Packet reply = receiveReply();
+
+        if (reply.getState() == States.LIST_DELETE_COMPLETED) {
+            System.out.println("List successfully deleted on the server.");
+        } else if (reply.getState() == States.LIST_DELETE_FAILED) {
+            System.out.println("Failed to delete list on the server.");
+        } else {
+            System.out.println("Unexpected response from server for delete request.");
+        }
+    }
+
+
+    public void synchronizeShoppingList(ShoppingList list) throws IOException {
+        if (list == null) {
+            System.out.println("No selected list to update.");
+            return;
+        }
+        String listJson = gson.toJson(list);
+        sendRequest(new Packet(States.LIST_UPDATE_REQUESTED, listJson));
+        Packet reply = receiveReply();
+
+        if (reply.getState() == States.LIST_UPDATE_COMPLETED) {
+            System.out.println("[LOG] List updated successfully on the server.");
+        } else if (reply.getState() == States.LIST_UPDATE_FAILED) {
+            System.out.println("[LOG] Failed to update list on the server.");
+        } else {
+            System.out.println("Unexpected response from server.");
+        }
+    }
+
+    private void setConnectionMode(boolean online) {
+        this.online = online;
+    }
 
     public static void main(String[] args) throws IOException {
         RunClient client = new RunClient();
-        client.attemptHandshake();
+        client.setConnectionMode(client.attemptHandshake());
         client.run();
     }
+
 }

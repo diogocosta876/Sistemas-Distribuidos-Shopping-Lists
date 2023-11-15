@@ -1,8 +1,8 @@
 package org.example;
-
 import com.google.gson.Gson;
 import org.example.Messaging.Packet;
 import org.example.Messaging.States;
+import org.example.ShoppingList.ShoppingList;
 import org.zeromq.SocketType;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
@@ -21,11 +21,11 @@ public class RunRouterServer {
     public void run() {
         System.out.println("Server Running");
         while (!Thread.currentThread().isInterrupted()) {
-            System.out.println("Awaiting request...");
-
             byte[] requestBytes = socket.recv(0);
             String requestString = new String(requestBytes, ZMQ.CHARSET);
             Packet requestPacket = gson.fromJson(requestString, Packet.class);
+
+            System.out.println("Received request: " + requestPacket);
 
             Packet responsePacket = processRequest(requestPacket);
 
@@ -35,18 +35,32 @@ public class RunRouterServer {
     }
 
     private Packet processRequest(Packet requestPacket) {
-        if (requestPacket.getState() == States.HANDSHAKE_INITIATED) {
-            System.out.println("Handshake initiated by client.");
+        States state = requestPacket.getState();
+        String message = requestPacket.getMessageBody();
 
-            return new Packet(States.HANDSHAKE_COMPLETED, "Handshake successful");
-        }
-
-
-        return new Packet(States.LIST_UPDATE_FAILED, "Invalid request state");
+        return switch (state) {
+            case HANDSHAKE_INITIATED -> {
+                System.out.println("Handshake initiated by client.");
+                yield new Packet(States.HANDSHAKE_COMPLETED, "Handshake successful");
+            }
+            case LIST_UPDATE_REQUESTED -> {
+                System.out.println("List update requested.");
+                ShoppingList list = gson.fromJson(message, ShoppingList.class);
+                list.displayList();
+                yield new Packet(States.LIST_UPDATE_COMPLETED, "List updated successfully");
+            }
+            case LIST_DELETE_REQUESTED -> {
+                System.out.println("List deletion requested: " + message);
+                yield new Packet(States.LIST_DELETE_COMPLETED, "List deleted successfully");
+            }
+            default -> {
+                System.out.println("Invalid request state: " + state);
+                yield new Packet(States.LIST_UPDATE_FAILED, "Invalid request state");
+            }
+        };
     }
 
     public static void main(String[] args) {
-        // Example usage:
         RunRouterServer loadBalancer = new RunRouterServer(5555);
         loadBalancer.run();
     }
