@@ -1,5 +1,8 @@
 package org.example;
 
+import com.google.gson.Gson;
+import org.example.Messaging.Packet;
+import org.example.Messaging.States;
 import org.example.ShoppingList.Item;
 import org.example.ShoppingList.ShoppingList;
 import org.example.ShoppingList.ShoppingListManager;
@@ -15,46 +18,48 @@ import java.util.Scanner;
 public class RunClient {
     private ShoppingListManager listManager;
     private ShoppingList selectedList;
-    private Scanner scanner;
+    private final Scanner scanner;
 
     private final ZMQ.Socket socket;
-
-    private final String serverAddress = "tcp://localhost:5555"; // this later needs to be setup dynamically
 
     public RunClient() {
         this.listManager = null;
         this.scanner = new Scanner(System.in);
         ZContext context = new ZContext(1);
         this.socket = context.createSocket(SocketType.REQ);
+        // this later needs to be setup dynamically
+        String serverAddress = "tcp://localhost:5555";
         this.socket.connect(serverAddress);
     }
 
 
-    // maybe request and receive should be on same function on the client
-    public void sendRequest(@NotNull String request) {
-        // Send request to load balancer
-        socket.send(request.getBytes(ZMQ.CHARSET), 0);
+    // Send a request to the router with a serialized Packet object
+    public void sendRequest(@NotNull Packet packet) {
+        Gson gson = new Gson();
+        String serializedPacket = gson.toJson(packet);
+
+        socket.send(serializedPacket.getBytes(ZMQ.CHARSET), 0);
     }
 
-    public String receiveReply() {
-        // Receive the reply from the load balancer
-        System.out.println("bef");
-        byte[] reply = socket.recv(0);
-        System.out.println("aft");
+    // Receive the reply from the router and deserialize to a Packet object
+    public Packet receiveReply() {
+        byte[] replyBytes = socket.recv(0);
+        String replyString = new String(replyBytes, ZMQ.CHARSET);
 
-
-        // Process the reply if needed
-        return new String(reply, ZMQ.CHARSET);
+        Gson gson = new Gson();
+        return gson.fromJson(replyString, Packet.class);
     }
 
     public int attemptHandshake(){
-        System.out.println("Attempting handshake..");
+        System.out.println("[LOG] Pinging Server..");
 
-        sendRequest("hello");
+        sendRequest(new Packet(States.HANDSHAKE_INITIATED, null));
 
-        String reply = receiveReply();
-        System.out.println("Received reply from Load Balancer: " + reply);
-
+        Packet reply = receiveReply();
+        if (reply.getState() == States.HANDSHAKE_COMPLETED) {
+            System.out.println("[LOG] Connection with server established.");
+            return 1;
+        }
 
         return 0;
     }
@@ -109,10 +114,8 @@ public class RunClient {
                         listManager.updateList(selectedList);
                         break;
                     case 5:
-                        if(selectedList != null){
-                            listManager.deleteShoppingList(selectedList.getName());
-                            selectedList = null;
-                        }
+                        listManager.deleteShoppingList(selectedList.getName());
+                        selectedList = null;
                         break;
                     case 6:
                         System.out.println("Goodbye!");
@@ -179,7 +182,7 @@ public class RunClient {
     }
 
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         RunClient client = new RunClient();
         client.attemptHandshake();
         client.run();
