@@ -4,10 +4,10 @@ import org.zeromq.SocketType;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
 
-public class RunMiddleManServer {
+public class RunRouterServer {
     private final ZMQ.Socket socket;
 
-    public RunMiddleManServer(int port) {
+    public RunRouterServer(int port) {
         ZContext context = new ZContext(1);
         this.socket = context.createSocket(SocketType.REP);
         this.socket.bind("tcp://*:" + port);
@@ -39,7 +39,7 @@ public class RunMiddleManServer {
     //For independant execution
     public static void main(String[] args) {
         // Example usage:
-        RunMiddleManServer loadBalancer = new RunMiddleManServer(5555);
+        RunRouterServer loadBalancer = new RunRouterServer(5555);
         loadBalancer.run();
     }
 }
