@@ -15,7 +15,7 @@ public class RunDBServer {
     private DBShard shard2;
     private DBShard shard3;
 
-    public RunDBServer() {
+    public RunDBServer() throws IOException {
         // Initialize shards with different file paths and unique ports
         shard1 = new DBShard("./src/main/java/org/example/DBServer/Data/shard1.json", 1, 5556);
         //shard2 = new DBShard("shard2.json", 2, 5552);
@@ -24,7 +24,7 @@ public class RunDBServer {
         shard1.run();
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         RunDBServer dbServer = new RunDBServer();
     }
 }

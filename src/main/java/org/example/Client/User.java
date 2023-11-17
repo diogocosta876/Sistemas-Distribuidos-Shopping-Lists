@@ -104,6 +104,7 @@ public class User {
             Files.createDirectories(Paths.get(userFilePath).getParent());
             try (Writer writer = new FileWriter(userFilePath)) {
                 writer.write(json);
+                writer.flush();
             }
         } catch (IOException e) {
             e.printStackTrace();

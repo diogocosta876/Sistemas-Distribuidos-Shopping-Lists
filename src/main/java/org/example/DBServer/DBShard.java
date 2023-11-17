@@ -6,9 +6,7 @@ import com.google.gson.reflect.TypeToken;
 import org.example.Messaging.Packet;
 import org.example.Messaging.States;
 import org.example.ShoppingList.ShoppingList;
-import org.zeromq.SocketType;
-import org.zeromq.ZContext;
-import org.zeromq.ZMQ;
+import org.zeromq.*;
 
 import java.io.*;
 import java.lang.reflect.Type;
@@ -29,26 +27,27 @@ public class DBShard {
         this.port = port;
         this.shardNumber = shardNumber;
         this.context = new ZContext();
-        this.socket = context.createSocket(SocketType.REP);
+        this.socket = context.createSocket(SocketType.ROUTER);
         this.socket.bind("tcp://*:" + port);
     }
 
-    public void run() {
+    public void run() throws IOException {
         System.out.println("DBShard Server Running on Port: " + port);
         while (!Thread.currentThread().isInterrupted()) {
-            try {
-                processRequest();
-            } catch (IOException e) {
-                System.out.println("Error processing request: " + e.getMessage());
+            ZMsg msg = ZMsg.recvMsg(socket);
+            if (msg != null) {
+                processRequest(msg);
             }
         }
     }
 
-    public void processRequest() throws IOException {
-        byte[] requestBytes = socket.recv(0);
-        System.out.println("Received request: " + new String(requestBytes, ZMQ.CHARSET));
-        String requestString = new String(requestBytes, ZMQ.CHARSET);
+    private void processRequest(ZMsg msg) throws IOException {
+        ZFrame identityFrame = msg.pop();
+        ZFrame contentFrame = msg.pop();
+
+        String requestString = new String(contentFrame.getData(), ZMQ.CHARSET);
         Packet requestPacket = gson.fromJson(requestString, Packet.class);
+
 
         Packet responsePacket;
         try {
@@ -67,6 +66,12 @@ public class DBShard {
                             new Packet(States.LIST_DELETE_FAILED, "Deletion failed");
                     break;
 
+                case RETRIEVE_LISTS_REQUESTED:
+                    List<ShoppingList> allLists = loadShoppingLists();
+                    String allListsJson = gson.toJson(allLists);
+                    responsePacket = new Packet(States.RETRIEVE_LISTS_COMPLETED, allListsJson);
+                    break;
+
                 default:
                     responsePacket = new Packet(States.LIST_UPDATE_FAILED, "Invalid request state");
             }
@@ -75,11 +80,30 @@ public class DBShard {
         }
 
         String serializedResponse = gson.toJson(responsePacket);
-        socket.send(serializedResponse.getBytes(ZMQ.CHARSET), 0);
+        ZMsg responseMsg = new ZMsg();
+        responseMsg.add(identityFrame);
+        responseMsg.addString(gson.toJson(responsePacket));
+        responseMsg.send(socket);
     }
 
     private boolean updateShoppingList(ShoppingList updatedList) throws IOException {
-        return saveShoppingLists(updatedList);
+        List<ShoppingList> existingLists = loadShoppingLists();
+
+        // Add or update the incoming list in the collection of existing lists
+        boolean listExists = false;
+        for (int i = 0; i < existingLists.size(); i++) {
+            if (existingLists.get(i).getName().equals(updatedList.getName())) {
+                existingLists.set(i, updatedList);
+                listExists = true;
+                break;
+            }
+        }
+
+        if (!listExists) {
+            existingLists.add(updatedList);
+        }
+
+        return saveUpdatedListsToFile(existingLists);
     }
 
     private boolean deleteShoppingList(String listName) throws IOException {
@@ -88,26 +112,6 @@ public class DBShard {
         return saveUpdatedListsToFile(lists);
     }
 
-    private boolean saveShoppingLists(ShoppingList incomingList) throws IOException {
-        List<ShoppingList> existingLists = loadShoppingLists();
-
-        // Add or update the incoming list in the collection of existing lists
-        boolean listExists = false;
-        for (int i = 0; i < existingLists.size(); i++) {
-            if (existingLists.get(i).getName().equals(incomingList.getName())) {
-                existingLists.set(i, incomingList);  // Update existing list
-                listExists = true;
-                break;
-            }
-        }
-
-        if (!listExists) {
-            existingLists.add(incomingList);  // Add new list if it doesn't exist
-        }
-
-        // Save the updated lists back to the file
-        return saveUpdatedListsToFile(existingLists);
-    }
 
     private List<ShoppingList> loadShoppingLists() throws IOException {
         File file = new File(shardFilePath);
@@ -127,6 +131,7 @@ public class DBShard {
         try (Writer writer = new FileWriter(shardFilePath)) {
             System.out.println("Saving updated shopping lists to file: " + shardFilePath);
             gson.toJson(lists, writer);
+            writer.flush();
             return true;
         } catch (IOException e) {
             System.out.println("Error saving updated shopping lists: " + e.getMessage());

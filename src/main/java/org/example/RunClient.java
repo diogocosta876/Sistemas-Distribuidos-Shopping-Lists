@@ -13,6 +13,7 @@ import org.zeromq.ZMQ;
 import org.zeromq.ZContext;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Scanner;
 import java.util.UUID;
 
@@ -24,14 +25,21 @@ public class RunClient {
     private final Gson gson = new Gson();
 
     private final ZMQ.Socket socket;
+    private final ZContext context;
+    private final ZMQ.Poller poller;
 
     public RunClient() {
         this.listManager = null;
         this.scanner = new Scanner(System.in);
-        ZContext context = new ZContext(1);
-        this.socket = context.createSocket(SocketType.REQ);
-        String serverAddress = "tcp://localhost:5555"; // this later needs to be setup dynamically
+
+        this.context = new ZContext(1);
+
+        this.socket = context.createSocket(SocketType.DEALER);
+        String serverAddress = "tcp://localhost:5555";
         this.socket.connect(serverAddress);
+
+        this.poller = context.createPoller(1);
+        poller.register(socket, ZMQ.Poller.POLLIN);
     }
 
 
@@ -41,10 +49,19 @@ public class RunClient {
     }
 
     public Packet receiveReply() {
-        byte[] replyBytes = socket.recv(0);
-        String replyString = new String(replyBytes, ZMQ.CHARSET);
-
-        return gson.fromJson(replyString, Packet.class);
+        int rc = poller.poll(2000); // Wait for a maximum of 2 seconds
+        if (rc == -1) {
+            System.out.println("[LOG] Error polling socket.");
+            return null;
+        }
+        if (poller.pollin(0)) {
+            byte[] replyBytes = socket.recv(0);
+            String replyString = new String(replyBytes, ZMQ.CHARSET);
+            return gson.fromJson(replyString, Packet.class);
+        } else {
+            System.out.println("[LOG] No response from server.");
+            return null;
+        }
     }
 
     public boolean attemptHandshake(){
@@ -79,12 +96,13 @@ public class RunClient {
             System.out.println("4. Delete item from the selected list");
             System.out.println("5. Delete current selected list");
             System.out.println("6. Exit");
+            System.out.println("7. [TEMPORARY] Fetch all lists");
             System.out.print("Enter your choice: ");
 
             int choice = scanner.nextInt();
             scanner.nextLine(); // Consume newline
 
-            if(selectedList == null && choice != 1 && choice != 2 && choice != 6){
+            if(selectedList == null && choice != 1 && choice != 2 && choice != 6  && choice != 7){ //DELETE 7 LATER
                 System.out.println("No list selected. Please select a list first.");
             }else{
                 switch (choice) {
@@ -121,6 +139,16 @@ public class RunClient {
                     case 6:
                         System.out.println("Goodbye!");
                         return;
+                    case 7:
+                        System.out.println("Synchronizing lists...");
+                        List<ShoppingList> lists = synchronizeShoppingLists();
+                        for (ShoppingList list : lists) {
+                            System.out.println("List: " + list.getName());
+                            for (Item item : list.getItems()) {
+                                System.out.println("\tItem: " + item.getName() + " - " + item.getQuantity());
+                            }
+                        }
+                        break;
                     default:
                         System.out.println("Invalid choice. Please try again.");
                 }
@@ -215,6 +243,24 @@ public class RunClient {
         } else {
             System.out.println("Unexpected response from server.");
         }
+    }
+
+    public List<ShoppingList> synchronizeShoppingLists() throws IOException {
+        //for now this method just fetches the lists from the server
+        // TODO later it should compare the lists and update the server (CRDTS)
+        sendRequest(new Packet(States.RETRIEVE_LISTS_REQUESTED, null));
+        Packet reply = receiveReply();
+
+        if (reply.getState() == States.RETRIEVE_LISTS_COMPLETED) {
+            System.out.println("[LOG] Lists retrieved successfully from the server.");
+            List<ShoppingList> lists = gson.fromJson(reply.getMessageBody(), List.class);
+
+            //this.listManager.setShoppingLists(lists);
+            return lists;
+        } else {
+            System.out.println("Unexpected response from server.");
+        }
+        return null;
     }
 
     private void setConnectionMode(boolean online) {

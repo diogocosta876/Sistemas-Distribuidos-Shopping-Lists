@@ -3,32 +3,35 @@ import com.google.gson.Gson;
 import org.example.Messaging.Packet;
 import org.example.Messaging.States;
 import org.example.ShoppingList.ShoppingList;
-import org.zeromq.SocketType;
-import org.zeromq.ZContext;
-import org.zeromq.ZMQ;
+import org.zeromq.*;
 
 public class RunRouterServer {
-    private ZMQ.Socket clientSocket;
-    private ZMQ.Socket dbSocket;
+    private ZMQ.Socket clientSocket; // ROUTER for client
+    private ZMQ.Socket dbSocket;     // DEALER for DB
     private final Gson gson;
 
     public RunRouterServer(int port) {
         ZContext context = new ZContext(1);
 
-        this.clientSocket = context.createSocket(SocketType.REP);
+        this.clientSocket = context.createSocket(SocketType.ROUTER);
         this.clientSocket.bind("tcp://*:" + port);
 
-        this.dbSocket = context.createSocket(SocketType.REQ);
-        String dbServerAddress = "tcp://localhost:5556";
-        this.dbSocket.connect(dbServerAddress);
+        this.dbSocket = context.createSocket(SocketType.DEALER);
+
+        this.dbSocket.connect("tcp://localhost:5556");
+        // ... connect to other DB servers as needed ...
+
         gson = new Gson();
     }
 
     public void run() {
         System.out.println("Server Running");
         while (!Thread.currentThread().isInterrupted()) {
-            byte[] requestBytes = clientSocket.recv(0);
-            String requestString = new String(requestBytes, ZMQ.CHARSET);
+            ZMsg msg = ZMsg.recvMsg(clientSocket);
+            ZFrame identityFrame = msg.pop();
+            ZFrame contentFrame = msg.pop();
+
+            String requestString = new String(contentFrame.getData(), ZMQ.CHARSET);
             Packet requestPacket = gson.fromJson(requestString, Packet.class);
 
             System.out.println("[LOG] Received request: " + requestPacket);
@@ -36,7 +39,12 @@ public class RunRouterServer {
             Packet responsePacket = processRequest(requestPacket);
 
             String serializedResponse = gson.toJson(responsePacket);
-            clientSocket.send(serializedResponse.getBytes(ZMQ.CHARSET), 0);
+
+            ZMsg replyMsg = new ZMsg();
+            replyMsg.add(identityFrame);
+            replyMsg.addString(serializedResponse);
+            replyMsg.send(clientSocket);
+
             System.out.println("[LOG] Sent Client response: " + responsePacket);
         }
     }
@@ -47,6 +55,7 @@ public class RunRouterServer {
                 System.out.println("[LOG] Handshake initiated by client.");
                 return new Packet(States.HANDSHAKE_COMPLETED, "[LOG] Handshake successful");
 
+            case RETRIEVE_LISTS_REQUESTED:
             case LIST_UPDATE_REQUESTED:
             case LIST_DELETE_REQUESTED:
                 return forwardRequestToDBServer(requestPacket);

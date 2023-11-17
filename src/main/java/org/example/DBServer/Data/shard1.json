@@ -1,22 +1,40 @@
 [
   {
-    "name": "teste",
-    "uuid": "5363b4d5-bc3a-46bc-bf25-7eb7ae49849a",
-    "items": []
-  },
-  {
     "name": "pingo doce",
-    "uuid": "98d30534-b98d-45a0-879b-fd80fbc5b75b",
+    "uuid": "9c45848f-4d25-4902-b6ba-f01b7cbcb4e3",
     "items": [
       {
-        "name": "cebolas",
+        "name": "bolachas",
+        "quantity": 2
+      },
+      {
+        "name": "tomates",
         "quantity": 1
       }
     ]
   },
   {
-    "name": "conti",
-    "uuid": "df0fe3b5-4336-4f7a-9abb-5b4b25513777",
-    "items": []
+    "name": "continente",
+    "uuid": "cc736828-c3c1-42be-9ad1-43ab09c6807c",
+    "items": [
+      {
+        "name": "massa",
+        "quantity": 1
+      }
+    ]
+  },
+  {
+    "name": "intermarche",
+    "uuid": "393372ae-a8a2-45eb-bc04-3497218745f9",
+    "items": [
+      {
+        "name": "iogurte",
+        "quantity": 3
+      },
+      {
+        "name": "arroz",
+        "quantity": 1
+      }
+    ]
   }
 ]

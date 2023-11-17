@@ -31,7 +31,12 @@ public class ShoppingListManager {
     }
 
     public void addShoppingList(ShoppingList shoppingList){
-        //TODO prevent creation from shopping list with the same name
+        for (ShoppingList list : shoppingLists) {
+            if (list.getName().equals(shoppingList.getName())) {
+                System.out.println("List with the same name already exists");
+                return;
+            }
+        }
         shoppingLists.add(shoppingList);
     }
 
@@ -52,7 +57,7 @@ public class ShoppingListManager {
         return shoppingLists;
     }
 
-    public void setShoppingLists(){
+    public void setShoppingLists(List<ShoppingList> shoppingLists){
         this.user.setLists(shoppingLists);
     }
 
