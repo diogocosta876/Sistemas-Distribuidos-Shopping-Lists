@@ -24,6 +24,16 @@
           "quantity": 1
         }
       ]
+    },
+    {
+      "name": "teste hashring",
+      "uuid": "8fabf7df-d144-448b-9950-5140bac17afa",
+      "items": [
+        {
+          "name": "azeitonas",
+          "quantity": 2
+        }
+      ]
     }
   ]
 }

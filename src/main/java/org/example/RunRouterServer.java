@@ -1,25 +1,28 @@
 package org.example;
 import com.google.gson.Gson;
+import org.example.DBServer.HashFunction;
+import org.example.DBServer.HashRing;
+import org.example.DBServer.SimpleHashFunction;
 import org.example.Messaging.Packet;
 import org.example.Messaging.States;
 import org.example.ShoppingList.ShoppingList;
 import org.zeromq.*;
 
-public class RunRouterServer {
-    private ZMQ.Socket clientSocket; // ROUTER for client
-    private ZMQ.Socket dbSocket;     // DEALER for DB
-    private final Gson gson;
+import java.util.List;
 
-    public RunRouterServer(int port) {
-        ZContext context = new ZContext(1);
+public class RunRouterServer {
+    private final ZMQ.Socket clientSocket;
+    private final ZContext context = new ZContext(1);
+    private final Gson gson;
+    private HashRing hashRing;
+
+    public RunRouterServer(int port, HashFunction hashFunction, int numberOfShardReplicas) {
 
         this.clientSocket = context.createSocket(SocketType.ROUTER);
         this.clientSocket.bind("tcp://*:" + port);
 
-        this.dbSocket = context.createSocket(SocketType.DEALER);
-
-        this.dbSocket.connect("tcp://localhost:5556");
-        // ... connect to other DB servers as needed ...
+        this.hashRing = new HashRing(hashFunction, numberOfShardReplicas);
+        hashRing.addServer("tcp://localhost:5556");
 
         gson = new Gson();
     }
@@ -68,6 +71,16 @@ public class RunRouterServer {
 
     private Packet forwardRequestToDBServer(Packet requestPacket) {
         String requestString = gson.toJson(requestPacket);
+
+        //TODO fetch list id from request packet if request involves list
+        String shardKey = "31142cc1-ca15-4ce3-8f46-87f0da0972a6";
+
+        List<String> servers = hashRing.getServers(shardKey);
+        String primaryServer = servers.get(0); //TODO implement hashing algorithm to select primary server
+
+        ZMQ.Socket dbSocket = context.createSocket(SocketType.DEALER);
+        dbSocket.connect(primaryServer);
+
         dbSocket.send(requestString.getBytes(ZMQ.CHARSET), 0);
         System.out.println("[LOG] Request forwarded to DB server");
 
@@ -78,8 +91,9 @@ public class RunRouterServer {
     }
 
 
+
     public static void main(String[] args) {
-        RunRouterServer loadBalancer = new RunRouterServer(5555);
+        RunRouterServer loadBalancer = new RunRouterServer(5555, new SimpleHashFunction(), 1 );
         loadBalancer.run();
     }
 }
