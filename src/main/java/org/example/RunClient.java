@@ -3,6 +3,7 @@ package org.example;
 import com.google.gson.Gson;
 import org.example.Messaging.Packet;
 import org.example.Messaging.States;
+import org.example.ShoppingList.CRDTItem;
 import org.example.ShoppingList.Item;
 import org.example.ShoppingList.ShoppingList;
 import org.example.ShoppingList.ShoppingListManager;
@@ -18,6 +19,7 @@ import java.util.Scanner;
 import java.util.UUID;
 
 public class RunClient {
+    
     private ShoppingListManager listManager;
     private ShoppingList selectedList;
     private final Scanner scanner;
@@ -86,8 +88,8 @@ public class RunClient {
 
         while (true) {
             if(selectedList != null){
-                System.out.println("Selected List: "+this.selectedList.getName());
-                this.selectedList.displayList();
+                System.out.println("Selected List: "+this.selectedList.getListName());
+                this.selectedList.displayShoppingList();
             }
 
             System.out.println("1. Create a new shopping list");
@@ -132,7 +134,7 @@ public class RunClient {
                         synchronizeShoppingList(selectedList);
                         break;
                     case 5:
-                        listManager.deleteShoppingList(selectedList.getName());
+                        listManager.deleteShoppingList(selectedList.getListName());
                         synchronizeDeleteShoppingList(selectedList.getUUID());
                         selectedList = null;
                         break;
@@ -143,10 +145,8 @@ public class RunClient {
                         System.out.println("Synchronizing lists...");
                         List<ShoppingList> lists = synchronizeShoppingLists();
                         for (ShoppingList list : lists) {
-                            System.out.println("List: " + list.getName());
-                            for (Item item : list.getItems()) {
-                                System.out.println("\tItem: " + item.getName() + " - " + item.getQuantity());
-                            }
+                            list.displayShoppingList();
+
                         }
                         break;
                     default:
@@ -184,8 +184,8 @@ public class RunClient {
         int itemQuantity = scanner.nextInt();
         scanner.nextLine();
 
-        Item item = new Item(itemName, itemQuantity);
-        selectedList.addItem(item);
+        CRDTItem item = new CRDTItem(itemQuantity,);
+        selectedList.addItem(itemName,item);
         System.out.println("Item added to the selected list.");
     }
 

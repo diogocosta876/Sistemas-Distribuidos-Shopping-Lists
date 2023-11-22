@@ -3,17 +3,18 @@ package org.example.ShoppingList;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.UUID;
 
 public class ShoppingList implements Serializable {
 
 
-    private final String listId;
+    private UUID uuid;
     private final Map<String, CRDTItem> items;
 
-    private final String listName;
+    private String listName;
 
     public ShoppingList(String listName) {
-        this.listId = ;
+        this.uuid = java.util.UUID.randomUUID();;
         this.listName = listName;
         this.items = new HashMap<>();
     }
@@ -30,12 +31,16 @@ public class ShoppingList implements Serializable {
     }
 
     // Get the ID of the shopping list
-    public String getListId() {
-        return listId;
+    public UUID getUUID() {
+        return uuid;
     }
 
     public String getListName(){
         return listName;
+    }
+
+    public void setName(String name){
+        this.listName = name;
     }
 
     // Merge two shopping lists
@@ -44,4 +49,19 @@ public class ShoppingList implements Serializable {
             items.computeIfAbsent(entry.getKey(), k -> new CRDTItem(entry.getKey())).merge(entry.getValue());
         }
     }
+
+    public void displayShoppingList() {
+        System.out.println("Shopping List ID: " + getUUID());
+        System.out.println("Items:");
+
+        for (Map.Entry<String, CRDTItem> entry : getState().entrySet()) {
+            CRDTItem item = entry.getValue();
+            System.out.println("  Item: " + entry.getKey());
+            System.out.println("  Quantity: " + item.getQuantity());
+            System.out.println("    User ID: " + item.getUserId());
+            System.out.println("    Timestamp: " + item.getTimeStamp());
+            System.out.println("--------------");
+        }
+    }
+
 }

@@ -97,7 +97,7 @@ public class ShoppingListManager {
             for (int i = 0; i < shoppingLists.size(); i++) {
                 if (shoppingLists.get(i).getListName().equals(selectedList.getListName())) {
                     //print items from selected list
-                    shoppingLists.get(i).displayList();
+                    shoppingLists.get(i).displayShoppingList();
                     shoppingLists.set(i, selectedList);
                     System.out.println("List updated: " + selectedList.getListName());
                 }

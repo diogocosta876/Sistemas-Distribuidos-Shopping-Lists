@@ -5,16 +5,16 @@ import java.io.Serializable;
 public class CRDTItem implements Serializable {
 
 
-    private String itemName;
+
     private int quantity;
     private String userId;
     private long timestamp;
 
-    public CRDTItem(String itemName) {
-        this.itemName = itemName;
+    public CRDTItem(int quantity, String userId) {
+
         this.quantity = 0;
         this.userId = "";
-        this.timestamp = 0L;
+        this.timestamp = 0;
     }
 
     // Update the item with new quantity, user ID, and timestamp
@@ -42,4 +42,6 @@ public class CRDTItem implements Serializable {
     public String getUserId() {
         return userId;
     }
+
+    public long getTimeStamp(){return timestamp;}
 }
