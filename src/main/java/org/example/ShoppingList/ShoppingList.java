@@ -10,8 +10,11 @@ public class ShoppingList implements Serializable {
     private final String listId;
     private final Map<String, CRDTItem> items;
 
-    public ShoppingList(String listId) {
-        this.listId = listId;
+    private final String listName;
+
+    public ShoppingList(String listName) {
+        this.listId = ;
+        this.listName = listName;
         this.items = new HashMap<>();
     }
 
@@ -29,6 +32,10 @@ public class ShoppingList implements Serializable {
     // Get the ID of the shopping list
     public String getListId() {
         return listId;
+    }
+
+    public String getListName(){
+        return listName;
     }
 
     // Merge two shopping lists
