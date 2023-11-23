@@ -23,6 +23,7 @@ public class RunRouterServer {
 
         this.hashRing = new HashRing(hashFunction, numberOfShardReplicas);
         hashRing.addServer("tcp://localhost:5556");
+        hashRing.addServer("tcp://localhost:5557");
 
         gson = new Gson();
     }

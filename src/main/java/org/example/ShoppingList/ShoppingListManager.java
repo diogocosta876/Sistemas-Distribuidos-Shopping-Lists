@@ -83,11 +83,8 @@ public class ShoppingListManager {
     }
 
     public String generateCustomID(String userId) {
-
         long seed = System.currentTimeMillis();
         Random random = new Random(seed);
-
-
         return "user_" + userId+ "_"  + Math.abs(random.nextInt())  + Math.abs(random.nextInt())+ ".txt";
     }
 
