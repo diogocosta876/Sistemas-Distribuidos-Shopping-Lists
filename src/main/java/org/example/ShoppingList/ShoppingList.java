@@ -1,67 +1,124 @@
 package org.example.ShoppingList;
 
 import java.io.Serializable;
-import java.util.Map;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 public class ShoppingList implements Serializable {
+    private final UUID listId;
 
-
-    private UUID uuid;
-    private final Map<String, CRDTItem> items;
-
-    private String listName;
+    private final String listName;
+    private long timestamp;
+    private Map<String, CRDTItem> itemList;
 
     public ShoppingList(String listName) {
-        this.uuid = java.util.UUID.randomUUID();;
+        this.listId = java.util.UUID.randomUUID();
         this.listName = listName;
-        this.items = new HashMap<>();
+        this.timestamp = 0;
+        this.itemList = new HashMap<>();
     }
 
-    // Add or update an item in the shopping list
-    public void addItem(String itemName, int quantity, String userId, long timestamp) {
-        CRDTItem item = items.computeIfAbsent(itemName, k -> new CRDTItem(itemName));
-        item.updateItem(quantity, userId, timestamp);
+
+    public UUID getListId() {
+        return listId;
     }
 
-    // Get the current state of the shopping list
-    public Map<String, CRDTItem> getState() {
-        return new HashMap<>(items);
+    public String getListName() {return listName;}
+
+    public long getTimestamp() {
+        return timestamp;
     }
 
-    // Get the ID of the shopping list
-    public UUID getUUID() {
-        return uuid;
-    }
+    public Map<String, CRDTItem> getItemList(){return itemList;}
 
-    public String getListName(){
-        return listName;
-    }
 
-    public void setName(String name){
-        this.listName = name;
-    }
+    public void addItem(CRDTItem newItem) {
+        String itemName = newItem.getItemName();
+        if (!itemList.containsKey(itemName)) {
+            itemList.put(itemName, newItem);
+        } else {
+            CRDTItem existingItem = itemList.get(itemName);
 
-    // Merge two shopping lists
-    public void merge(ShoppingList otherList) {
-        for (Map.Entry<String, CRDTItem> entry : otherList.items.entrySet()) {
-            items.computeIfAbsent(entry.getKey(), k -> new CRDTItem(entry.getKey())).merge(entry.getValue());
+            // Update the existing item's quantity and timestamp
+            existingItem.setQuantity(newItem.getQuantity());
+            existingItem.setTimestamp(existingItem.getTimestamp() + 1);
+
+
+
+            System.out.println("Item updated: " + existingItem.getItemName());
         }
+
+
     }
+
+
+    // Method to remove an item from the shopping list
+    public void removeItem(String itemName) {
+        itemList.remove(itemName);
+    }
+
+    // Merge function to merge two shopping lists pass it to server maybe
+    public void merge(ShoppingList otherList) {
+        for (Map.Entry<String, CRDTItem> entry : otherList.itemList.entrySet()) {
+            String itemName = entry.getKey();
+            CRDTItem otherItem = entry.getValue();
+
+            // Check if the item exists in the current list
+            if (itemList.containsKey(itemName)) {
+                CRDTItem currentItem = itemList.get(itemName);
+
+                // Compare timestamps to determine the newer item
+                if (otherItem.getTimestamp() > currentItem.getTimestamp()) {
+                    // Replace with the newer item
+                    itemList.put(itemName, otherItem);
+                }
+            } else {
+                // Item doesn't exist in the current list, add it
+                itemList.put(itemName, otherItem);
+            }
+        }
+
+        // Update the timestamp after the merge
+        timestamp = Math.max(timestamp, otherList.getTimestamp());
+    }
+
 
     public void displayShoppingList() {
-        System.out.println("Shopping List ID: " + getUUID());
-        System.out.println("Items:");
+        System.out.println("Shopping List (" + listId + ")");
+        System.out.println("Timestamp: " + timestamp);
 
-        for (Map.Entry<String, CRDTItem> entry : getState().entrySet()) {
-            CRDTItem item = entry.getValue();
-            System.out.println("  Item: " + entry.getKey());
-            System.out.println("  Quantity: " + item.getQuantity());
-            System.out.println("    User ID: " + item.getUserId());
-            System.out.println("    Timestamp: " + item.getTimeStamp());
-            System.out.println("--------------");
+        if (itemList.isEmpty()) {
+            System.out.println("The shopping list is empty.");
+        } else {
+            System.out.println("Items:");
+
+            for (Map.Entry<String, CRDTItem> entry : itemList.entrySet()) {
+                CRDTItem item = entry.getValue();
+                System.out.println("  - " + item.getItemName() +
+                        " | Quantity: " + item.getQuantity() +
+                        " | Timestamp: " + item.getTimestamp());
+            }
         }
     }
 
+    // Serialization method
+    /*
+    public String serialize() {
+        StringBuilder json = new StringBuilder("{\"listId\":\"" + listId + "\",\"timestamp\":" + timestamp + ",\"itemList\":{");
+
+        for (Map.Entry<String, CRDTItem> entry : itemList.entrySet()) {
+            json.append("\"").append(entry.getKey()).append("\":").append(entry.getValue().serialize()).append(",");
+        }
+
+        if (!itemList.isEmpty()) {
+            json.deleteCharAt(json.length() - 1); // Remove the trailing comma
+        }
+
+        json.append("}}");
+
+        return json.toString();
+    }
+
+     */
 }

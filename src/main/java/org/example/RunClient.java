@@ -19,7 +19,8 @@ import java.util.Scanner;
 import java.util.UUID;
 
 public class RunClient {
-    
+
+    private User user;
     private ShoppingListManager listManager;
     private ShoppingList selectedList;
     private final Scanner scanner;
@@ -81,7 +82,7 @@ public class RunClient {
     }
 
     public void run() throws IOException {
-        User user = new User();
+        this.user = new User();
         if (!user.authenticate()) return;
 
         this.listManager = new ShoppingListManager(user);
@@ -135,7 +136,7 @@ public class RunClient {
                         break;
                     case 5:
                         listManager.deleteShoppingList(selectedList.getListName());
-                        synchronizeDeleteShoppingList(selectedList.getUUID());
+                        synchronizeDeleteShoppingList(selectedList.getListId());
                         selectedList = null;
                         break;
                     case 6:
@@ -184,8 +185,8 @@ public class RunClient {
         int itemQuantity = scanner.nextInt();
         scanner.nextLine();
 
-        CRDTItem item = new CRDTItem(itemQuantity,);
-        selectedList.addItem(itemName,item);
+        CRDTItem item = new CRDTItem(itemName,itemQuantity,0,user.uuid);
+        selectedList.addItem(item);
         System.out.println("Item added to the selected list.");
     }
 
@@ -193,12 +194,16 @@ public class RunClient {
         if (selectedList == null) {
             return;
         }
+
+        selectedList.displayShoppingList();
+
         System.out.print("Enter the number of the item to delete (0 to cancel): ");
         int choice = scanner.nextInt();
-        scanner.nextLine(); // Consume newline
+        scanner.nextLine();
 
-        if (choice > 0 && choice <= selectedList.getItems().size()) {
-            selectedList.removeItem(choice - 1);
+        if (choice > 0 && choice <= selectedList.getItemList().size()) {
+            String itemNameToDelete = selectedList.getItemList().keySet().toArray()[choice - 1].toString();
+            selectedList.removeItem(itemNameToDelete);
             System.out.println("Item deleted from the selected list.");
         } else if (choice == 0) {
             System.out.println("Canceled deletion.");

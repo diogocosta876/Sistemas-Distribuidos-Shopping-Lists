@@ -13,7 +13,7 @@ import org.example.ShoppingList.ShoppingList;
 public class ShoppingListManager {
     private List<ShoppingList> shoppingLists;
     private User user;
-    private String userDirectoryPath;
+    private final String userDirectoryPath;
 
     public ShoppingListManager(User user){
         this.shoppingLists = new ArrayList<>();
@@ -82,14 +82,7 @@ public class ShoppingListManager {
         user.saveToJson();
     }
 
-    public String generateCustomID(String userId) {
 
-        long seed = System.currentTimeMillis();
-        Random random = new Random(seed);
-
-
-        return "user_" + userId+ "_"  + Math.abs(random.nextInt())  + Math.abs(random.nextInt())+ ".txt";
-    }
 
     public void updateList(ShoppingList selectedList) {
         if (selectedList != null && selectedList.getListName() != null) {

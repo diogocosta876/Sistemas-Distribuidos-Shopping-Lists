@@ -92,7 +92,7 @@ public class DBShard {
         // Add or update the incoming list in the collection of existing lists
         boolean listExists = false;
         for (int i = 0; i < existingLists.size(); i++) {
-            if (existingLists.get(i).getName().equals(updatedList.getName())) {
+            if (existingLists.get(i).getListName().equals(updatedList.getListName())) {
                 existingLists.set(i, updatedList);
                 listExists = true;
                 break;
@@ -108,7 +108,7 @@ public class DBShard {
 
     private boolean deleteShoppingList(String listName) throws IOException {
         List<ShoppingList> lists = loadShoppingLists();
-        lists.removeIf(list -> list.getName().equals(listName));
+        lists.removeIf(list -> list.getListName().equals(listName));
         return saveUpdatedListsToFile(lists);
     }
 

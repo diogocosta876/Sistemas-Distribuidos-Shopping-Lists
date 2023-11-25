@@ -1,47 +1,46 @@
 package org.example.ShoppingList;
 
 import java.io.Serializable;
+import java.util.Objects;
+import java.util.UUID;
 
 public class CRDTItem implements Serializable {
-
-
-
+    private String itemName;
     private int quantity;
-    private String userId;
     private long timestamp;
+    private UUID userId; //the user id of the last user to change this item
 
-    public CRDTItem(int quantity, String userId) {
-
-        this.quantity = 0;
-        this.userId = "";
-        this.timestamp = 0;
+    public CRDTItem(String itemName, int quantity, long timestamp, UUID userId) {
+        this.itemName = itemName;
+        this.quantity = quantity;
+        this.timestamp = timestamp;
+        this.userId = userId;
     }
 
-    // Update the item with new quantity, user ID, and timestamp
-    public void updateItem(int quantity, String userId, long timestamp) {
-        if (timestamp > this.timestamp || (timestamp == this.timestamp && userId.compareTo(this.userId) > 0)) {
-            this.quantity = quantity;
-            this.userId = userId;
-            this.timestamp = timestamp;
-        }
+
+
+    public String getItemName(){return itemName;}
+
+    public UUID getUserId(){return userId;}
+
+    public long getTimestamp(){return timestamp;}
+
+    public int getQuantity() {return quantity;}
+
+    public void setQuantity(int newQuantity){ quantity = newQuantity;}
+
+    public void setTimestamp(long timestamp) {this.timestamp = timestamp;}
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        CRDTItem item = (CRDTItem) o;
+        return itemName.equals(item.itemName);
     }
 
-    public void merge(CRDTItem otherItem) {
-        if (otherItem.timestamp > this.timestamp || (otherItem.timestamp == this.timestamp && otherItem.userId.compareTo(this.userId) > 0)) {
-            this.quantity = otherItem.quantity;
-            this.userId = otherItem.userId;
-            this.timestamp = otherItem.timestamp;
-        }
+    @Override
+    public int hashCode() {
+        return Objects.hash(itemName);
     }
-
-    public int getQuantity() {
-        return quantity;
-    }
-
-    // Get the user ID of the last updater
-    public String getUserId() {
-        return userId;
-    }
-
-    public long getTimeStamp(){return timestamp;}
 }

@@ -1,0 +1,30 @@
+{
+  "uuid": "e3449412-a6ad-475f-9e2d-d99a64822909",
+  "lists": [
+    {
+      "listId": "cde83531-25da-44fe-93ef-3ff88cbe7a50",
+      "listName": "CRDT list",
+      "timestamp": 0,
+      "itemList": {
+        "cebolas": {
+          "itemName": "cebolas",
+          "quantity": 4,
+          "timestamp": 0,
+          "userId": "e3449412-a6ad-475f-9e2d-d99a64822909"
+        },
+        "panelas": {
+          "itemName": "panelas",
+          "quantity": 2,
+          "timestamp": 0,
+          "userId": "e3449412-a6ad-475f-9e2d-d99a64822909"
+        },
+        "cadeiras": {
+          "itemName": "cadeiras",
+          "quantity": 7,
+          "timestamp": 0,
+          "userId": "e3449412-a6ad-475f-9e2d-d99a64822909"
+        }
+      }
+    }
+  ]
+}
