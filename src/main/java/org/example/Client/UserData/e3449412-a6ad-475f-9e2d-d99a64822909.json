@@ -2,33 +2,19 @@
   "uuid": "e3449412-a6ad-475f-9e2d-d99a64822909",
   "lists": [
     {
-      "listId": "cde83531-25da-44fe-93ef-3ff88cbe7a50",
-      "listName": "CRDT list",
-      "timestamp": 0,
+      "listId": "ee2ab37a-ede4-455f-91c6-fb25398a0e57",
+      "listName": "test list",
       "itemList": {
-        "cadeiras": {
-          "itemName": "cadeiras",
-          "quantity": 7,
+        "arroz": {
+          "itemName": "arroz",
+          "quantity": 1,
           "timestamp": 0,
           "userId": "e3449412-a6ad-475f-9e2d-d99a64822909"
         },
         "panelas": {
           "itemName": "panelas",
-          "quantity": 2,
-          "timestamp": 0,
-          "userId": "e3449412-a6ad-475f-9e2d-d99a64822909"
-        }
-      }
-    },
-    {
-      "listId": "087420e7-d74d-480c-877c-7206da056eb4",
-      "listName": "test list",
-      "timestamp": 0,
-      "itemList": {
-        "item": {
-          "itemName": "item",
-          "quantity": 1,
-          "timestamp": 0,
+          "quantity": 0,
+          "timestamp": 2,
           "userId": "e3449412-a6ad-475f-9e2d-d99a64822909"
         }
       }

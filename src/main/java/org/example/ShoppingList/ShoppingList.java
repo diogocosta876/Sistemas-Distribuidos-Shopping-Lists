@@ -9,7 +9,6 @@ public class ShoppingList implements Serializable {
     private final UUID listId;
 
     private final String listName;
-    private long timestamp;
     private Map<String, CRDTItem> itemList;
 
     private transient States state;
@@ -20,7 +19,6 @@ public class ShoppingList implements Serializable {
         this.state = States.UNTRACKED;
         this.listId = java.util.UUID.randomUUID();
         this.listName = listName;
-        this.timestamp = 0;
         this.itemList = new HashMap<>();
     }
 
@@ -31,9 +29,7 @@ public class ShoppingList implements Serializable {
 
     public String getListName() {return listName;}
 
-    public long getTimestamp() {
-        return timestamp;
-    }
+
 
     public Map<String, CRDTItem> getItemList(){return itemList;}
 
@@ -68,35 +64,12 @@ public class ShoppingList implements Serializable {
         itemList.remove(itemName);
     }
 
-    // Merge function to merge two shopping lists pass it to server maybe
-    public void merge(ShoppingList otherList) {
-        for (Map.Entry<String, CRDTItem> entry : otherList.itemList.entrySet()) {
-            String itemName = entry.getKey();
-            CRDTItem otherItem = entry.getValue();
 
-            // Check if the item exists in the current list
-            if (itemList.containsKey(itemName)) {
-                CRDTItem currentItem = itemList.get(itemName);
-
-                // Compare timestamps to determine the newer item
-                if (otherItem.getTimestamp() > currentItem.getTimestamp()) {
-                    // Replace with the newer item
-                    itemList.put(itemName, otherItem);
-                }
-            } else {
-                // Item doesn't exist in the current list, add it
-                itemList.put(itemName, otherItem);
-            }
-        }
-
-        // Update the timestamp after the merge
-        timestamp = Math.max(timestamp, otherList.getTimestamp());
-    }
 
 
     public void displayShoppingList() {
         System.out.println("Shopping List (" + listId + ")");
-        System.out.println("Timestamp: " + timestamp);
+        System.out.println("STATE: " + state);
 
         if (itemList.isEmpty()) {
             System.out.println("The shopping list is empty.");
@@ -105,10 +78,18 @@ public class ShoppingList implements Serializable {
 
             for (Map.Entry<String, CRDTItem> entry : itemList.entrySet()) {
                 CRDTItem item = entry.getValue();
-                System.out.println("  - " + item.getItemName() +
-                        " | Quantity: " + item.getQuantity() +
-                        " | Timestamp: " + item.getTimestamp());
+
+                if(item.getQuantity() != 0){// if item has quantity 0 it should not be displayed to the client, means the client deleted it and it has not yet synchronized with the server
+                    System.out.println("  - " + item.getItemName() +
+                            " | Quantity: " + item.getQuantity() +
+                            " | Timestamp: " + item.getTimestamp());
+                }else{
+                    System.out.println("  - "+"Deleted " + item.getItemName() +
+                            " | Quantity: " + item.getQuantity() +
+                            " | Timestamp: " + item.getTimestamp());
+                }
             }
+
         }
     }
 

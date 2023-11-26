@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import org.example.Messaging.Packet;
 import org.example.Messaging.States;
+import org.example.ShoppingList.CRDTItem;
 import org.example.ShoppingList.ShoppingList;
 import org.zeromq.*;
 
@@ -12,6 +13,7 @@ import java.io.*;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class DBShard {
@@ -50,14 +52,21 @@ public class DBShard {
 
 
         Packet responsePacket;
+        ShoppingList responseList;
         try {
             switch (requestPacket.getState()) {
                 case LIST_UPDATE_REQUESTED:
                     ShoppingList updatedList = gson.fromJson(requestPacket.getMessageBody(), ShoppingList.class);
                     updatedList.displayShoppingList();
-                    responsePacket = updateShoppingList(updatedList) ?
-                            new Packet(States.LIST_UPDATE_COMPLETED, "Update successful") :
-                            new Packet(States.LIST_UPDATE_FAILED, "Update failed");
+                    responseList = updateShoppingList(updatedList);
+                    if(responseList == null){
+                        responsePacket = new Packet(States.LIST_UPDATE_FAILED, "Update failed");
+                    }else{
+                        String list = gson.toJson(responseList);
+                        responsePacket = new Packet(States.LIST_UPDATE_COMPLETED, list );
+                    }
+
+
                     break;
 
                 case LIST_DELETE_REQUESTED:
@@ -87,13 +96,17 @@ public class DBShard {
         responseMsg.send(socket);
     }
 
-    private boolean updateShoppingList(ShoppingList updatedList) throws IOException {
+    private ShoppingList updateShoppingList(ShoppingList updatedList) throws IOException {
         List<ShoppingList> existingLists = loadShoppingLists();
         // Add or update the incoming list in the collection of existing lists
         boolean listExists = false;
-        for (int i = 0; i < existingLists.size(); i++) {
-            if (existingLists.get(i).getListName().equals(updatedList.getListName())) {
-                existingLists.set(i, updatedList);
+        for (ShoppingList existingList : existingLists) {
+            if (existingList.getListName().equals(updatedList.getListName())) {
+
+
+                merge(existingList, updatedList); // new way of dealing with existing lists implementing CRDT merge function
+                updatedList = existingList;
+                //existingLists.set(i, updatedList); //old way of dealing with existing lists was just overriding on server
                 listExists = true;
                 break;
             }
@@ -103,12 +116,19 @@ public class DBShard {
             existingLists.add(updatedList);
         }
 
-        return saveUpdatedListsToFile(existingLists);
+        if(!saveUpdatedListsToFile(existingLists)){
+            return null;
+        }else{
+            return updatedList;
+        }
+
+
     }
 
-    private boolean deleteShoppingList(String listName) throws IOException {
+    private boolean deleteShoppingList(String listID) throws IOException {
         List<ShoppingList> lists = loadShoppingLists();
-        lists.removeIf(list -> list.getListName().equals(listName));
+
+        lists.removeIf(list -> list.getListId().toString().equals(listID));
         return saveUpdatedListsToFile(lists);
     }
 
@@ -137,5 +157,38 @@ public class DBShard {
             System.out.println("Error saving updated shopping lists: " + e.getMessage());
             return false;
         }
+    }
+
+
+    public void merge(ShoppingList existingList, ShoppingList incomingList) {
+        for (Map.Entry<String, CRDTItem> entry : incomingList.getItemList().entrySet()) {
+
+            String itemName = entry.getKey();
+            CRDTItem incomingItem = entry.getValue();
+
+            // Check if the item exists in the current list
+            if (existingList.getItemList().containsKey(itemName)) {
+                CRDTItem currentItem = existingList.getItemList().get(itemName);
+
+                // Compare timestamps to determine the newer item in case of tie using user id
+                if (incomingItem.getTimestamp() > currentItem.getTimestamp() || ((incomingItem.getTimestamp() == currentItem.getTimestamp())&& (incomingItem.getUserId().compareTo(currentItem.getUserId()) > 0))) {
+                    // Replace with the newer item
+
+                    if(incomingItem.getQuantity() == 0){ //item quantity == 0 means user deleted the item from the list
+                        existingList.getItemList().remove(itemName);
+                    }else{
+                        existingList.getItemList().put(itemName, incomingItem); // otherwise replace the existing item on the list
+                    }
+
+                }
+            } else {
+                if(incomingItem.getQuantity()!=0){// this can occur when the user did not get the response from the server that the item was deleted
+                    // Item doesn't exist in the current list, so we add it
+                    existingList.getItemList().put(itemName, incomingItem);
+                }
+
+            }
+        }
+
     }
 }
