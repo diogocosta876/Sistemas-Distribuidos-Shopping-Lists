@@ -205,7 +205,7 @@ public class RunClient {
         int itemQuantity = scanner.nextInt();
         scanner.nextLine();
         CRDTItem item = new CRDTItem(itemName,itemQuantity,0,user.uuid);
-        if(selectedList.getItemList().containsKey(itemName)&& selectedList.getItemList().get(itemName).getTimestamp() != 0){// if the item being created already exists in the list then it is an update so
+        if((selectedList.getItemList().containsKey(itemName)&& selectedList.getItemList().get(itemName).getTimestamp() != 0)||selectedList.getState() == org.example.ShoppingList.States.IMPORTED){// if the item being created already exists in the list then it is an update so
                                                                 // if the list is in local_changes the item should only update its timestamp once
             if(!UpdatedItemsList.contains(itemName)){
                 UpdatedItemsList.add(itemName);

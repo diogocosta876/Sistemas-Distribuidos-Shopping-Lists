@@ -9,5 +9,7 @@ public enum States {
 
     UNTRACKED,
 
+    IMPORTED,
+
 }
 
