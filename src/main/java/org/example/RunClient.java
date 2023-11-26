@@ -286,6 +286,7 @@ public class RunClient {
             selectedList = gson.fromJson(reply.getMessageBody(), ShoppingList.class);
 
             selectedList.setState(org.example.ShoppingList.States.UPDATED);
+            listManager.updateList(selectedList);
 
         } else if (reply.getState() == States.LIST_UPDATE_FAILED) {
             System.out.println("[LOG] Failed to update list on the server.");
