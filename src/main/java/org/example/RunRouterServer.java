@@ -72,6 +72,8 @@ public class RunRouterServer {
     private Packet forwardRequestToDBServer(Packet requestPacket) {
         String requestString = gson.toJson(requestPacket);
 
+        System.out.println("request: "+requestString);
+
         //TODO fetch list id from request packet if request involves list
         String shardKey = "31142cc1-ca15-4ce3-8f46-87f0da0972a6";
 

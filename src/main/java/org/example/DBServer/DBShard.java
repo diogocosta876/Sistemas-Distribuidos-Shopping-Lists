@@ -54,6 +54,7 @@ public class DBShard {
             switch (requestPacket.getState()) {
                 case LIST_UPDATE_REQUESTED:
                     ShoppingList updatedList = gson.fromJson(requestPacket.getMessageBody(), ShoppingList.class);
+                    updatedList.displayShoppingList();
                     responsePacket = updateShoppingList(updatedList) ?
                             new Packet(States.LIST_UPDATE_COMPLETED, "Update successful") :
                             new Packet(States.LIST_UPDATE_FAILED, "Update failed");
@@ -88,7 +89,6 @@ public class DBShard {
 
     private boolean updateShoppingList(ShoppingList updatedList) throws IOException {
         List<ShoppingList> existingLists = loadShoppingLists();
-
         // Add or update the incoming list in the collection of existing lists
         boolean listExists = false;
         for (int i = 0; i < existingLists.size(); i++) {

@@ -17,11 +17,20 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Scanner;
 import java.util.UUID;
+import java.util.ArrayList;
+
+
+//TODO change display to not display items with CRDT quant = 0
+//TODO when updating list with remote change selected list
+//TODO implement timeStamps
+//TODO fix item only using time one time
 
 public class RunClient {
 
     private User user;
     private ShoppingListManager listManager;
+
+    List<String> UpdatedItemsList = new ArrayList<>();
     private ShoppingList selectedList;
     private final Scanner scanner;
     private boolean online;
@@ -87,11 +96,15 @@ public class RunClient {
 
         this.listManager = new ShoppingListManager(user);
 
+
+
         while (true) {
             if(selectedList != null){
                 System.out.println("Selected List: "+this.selectedList.getListName());
                 this.selectedList.displayShoppingList();
             }
+
+            System.out.println(UpdatedItemsList);
 
             System.out.println("1. Create a new shopping list");
             System.out.println("2. Select a shopping list");
@@ -167,6 +180,7 @@ public class RunClient {
 
         if (choice > 0 && choice <= listManager.getShoppingLists().size()) {
             selectedList = listManager.getShoppingLists().get(choice - 1);
+            UpdatedItemsList.clear();
         } else if (choice == 0) {
             System.out.println("Canceled selection.");
         } else {
@@ -187,6 +201,11 @@ public class RunClient {
 
         CRDTItem item = new CRDTItem(itemName,itemQuantity,0,user.uuid);
         selectedList.addItem(item);
+
+        UpdatedItemsList.add(itemName);
+
+
+
         System.out.println("Item added to the selected list.");
     }
 
@@ -243,6 +262,9 @@ public class RunClient {
 
         if (reply.getState() == States.LIST_UPDATE_COMPLETED) {
             System.out.println("[LOG] List updated successfully on the server.");
+            UpdatedItemsList.clear();
+            selectedList.setState(org.example.ShoppingList.States.UPDATED);
+
         } else if (reply.getState() == States.LIST_UPDATE_FAILED) {
             System.out.println("[LOG] Failed to update list on the server.");
         } else {

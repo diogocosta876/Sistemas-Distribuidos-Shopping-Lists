@@ -12,7 +12,12 @@ public class ShoppingList implements Serializable {
     private long timestamp;
     private Map<String, CRDTItem> itemList;
 
+    private transient States state;
+
+
+
     public ShoppingList(String listName) {
+        this.state = States.UNTRACKED;
         this.listId = java.util.UUID.randomUUID();
         this.listName = listName;
         this.timestamp = 0;
@@ -31,6 +36,11 @@ public class ShoppingList implements Serializable {
     }
 
     public Map<String, CRDTItem> getItemList(){return itemList;}
+
+    public States getState(){return state;}
+
+
+    public void setState(States newState){state = newState;}
 
 
     public void addItem(CRDTItem newItem) {
@@ -102,23 +112,5 @@ public class ShoppingList implements Serializable {
         }
     }
 
-    // Serialization method
-    /*
-    public String serialize() {
-        StringBuilder json = new StringBuilder("{\"listId\":\"" + listId + "\",\"timestamp\":" + timestamp + ",\"itemList\":{");
 
-        for (Map.Entry<String, CRDTItem> entry : itemList.entrySet()) {
-            json.append("\"").append(entry.getKey()).append("\":").append(entry.getValue().serialize()).append(",");
-        }
-
-        if (!itemList.isEmpty()) {
-            json.deleteCharAt(json.length() - 1); // Remove the trailing comma
-        }
-
-        json.append("}}");
-
-        return json.toString();
-    }
-
-     */
 }
