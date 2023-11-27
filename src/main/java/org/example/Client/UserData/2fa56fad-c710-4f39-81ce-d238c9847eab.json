@@ -24,6 +24,26 @@
           "quantity": 1
         }
       ]
+    },
+    {
+      "name": "teste hashring",
+      "uuid": "afcdc054-18af-4c05-ac0c-590e07335c0b",
+      "items": []
+    },
+    {
+      "name": "teste hashring 2",
+      "uuid": "7a5c2bf3-7301-4ccb-bb88-ae9a2a3112bf",
+      "items": []
+    },
+    {
+      "name": "teste hashring 3",
+      "uuid": "b1d2c374-d733-4fb4-a637-83fe70300768",
+      "items": []
+    },
+    {
+      "name": "teste hashring 4",
+      "uuid": "ce5ecb44-f4a5-4c57-af6b-3add883482b9",
+      "items": []
     }
   ]
 }

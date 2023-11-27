@@ -1,0 +1,22 @@
+[
+  {
+    "name": "testedb3.9",
+    "uuid": "4ff89c4a-da27-41db-8941-fa70bf195364",
+    "items": [
+      {
+        "name": "bananas",
+        "quantity": 2
+      }
+    ]
+  },
+  {
+    "name": "teste hashring",
+    "uuid": "afcdc054-18af-4c05-ac0c-590e07335c0b",
+    "items": []
+  },
+  {
+    "name": "teste hashring 4",
+    "uuid": "ce5ecb44-f4a5-4c57-af6b-3add883482b9",
+    "items": []
+  }
+]

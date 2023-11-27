@@ -25,6 +25,9 @@ public class RunRouterServer {
         hashRing.addServer("tcp://localhost:5556");
         hashRing.addServer("tcp://localhost:5557");
 
+        //DEBUG
+        System.out.println(hashRing.displayAllServers());
+
         gson = new Gson();
     }
 
@@ -59,11 +62,11 @@ public class RunRouterServer {
                 System.out.println("[LOG] Handshake initiated by client.");
                 return new Packet(States.HANDSHAKE_COMPLETED, "[LOG] Handshake successful");
 
-            case RETRIEVE_LISTS_REQUESTED:
             case LIST_UPDATE_REQUESTED:
             case LIST_DELETE_REQUESTED:
                 return forwardRequestToDBServer(requestPacket);
 
+                //TODO implement RETRIVE ALL LISTS request
             default:
                 System.out.println("Invalid request state: " + requestPacket.getState());
                 return new Packet(States.LIST_UPDATE_FAILED, "Invalid request state");
@@ -73,11 +76,13 @@ public class RunRouterServer {
     private Packet forwardRequestToDBServer(Packet requestPacket) {
         String requestString = gson.toJson(requestPacket);
 
-        //TODO fetch list id from request packet if request involves list
-        String shardKey = "31142cc1-ca15-4ce3-8f46-87f0da0972a6";
+        ShoppingList list = gson.fromJson(requestPacket.getMessageBody(), ShoppingList.class);
+        String listID = list.getUUID().toString();
+        System.out.println("[LOG] Requested list ID: " + listID);
 
-        List<String> servers = hashRing.getServers(shardKey);
-        String primaryServer = servers.get(0); //TODO implement hashing algorithm to select primary server
+        List<String> servers = hashRing.getServers(listID);
+        String primaryServer = servers.get(0); //pick primary server TODO handle failure
+        System.out.println("[LOG] Forwarding request to DB server: " + primaryServer);
 
         ZMQ.Socket dbSocket = context.createSocket(SocketType.DEALER);
         dbSocket.connect(primaryServer);
