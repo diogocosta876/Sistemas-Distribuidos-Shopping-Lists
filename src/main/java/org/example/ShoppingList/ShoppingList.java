@@ -1,70 +1,97 @@
 package org.example.ShoppingList;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
-public class ShoppingList {
-    private String name;
-    private String userId;
-    private UUID uuid;
-    private List<Item> items;
+public class ShoppingList implements Serializable {
+    private final UUID listId;
 
-    public ShoppingList(String name) {
-        this.name = name;
-        this.items = new ArrayList<>();
-        this.uuid = java.util.UUID.randomUUID();
+    private final String listName;
+    private Map<String, CRDTItem> itemList;
+
+    private transient States state;
+
+
+
+    public ShoppingList(String listName) {
+        this.state = States.UNTRACKED;
+        this.listId = java.util.UUID.randomUUID();
+        this.listName = listName;
+        this.itemList = new HashMap<>();
     }
 
-    public ShoppingList(){
-        this.items = new ArrayList<>();
+
+    public UUID getListId() {
+        return listId;
     }
 
-    public void addItem(Item item) {
-        items.add(item);
+    public String getListName() {return listName;}
+
+
+
+    public Map<String, CRDTItem> getItemList(){return itemList;}
+
+    public States getState(){return state;}
+
+
+    public void setState(States newState){state = newState;}
+
+
+    public void addItem(CRDTItem newItem) {
+        String itemName = newItem.getItemName();
+        if (!itemList.containsKey(itemName)) {
+            itemList.put(itemName, newItem);
+        } else {
+            CRDTItem existingItem = itemList.get(itemName);
+
+            // Update the existing item's quantity and timestamp
+            existingItem.setQuantity(newItem.getQuantity());
+            existingItem.setTimestamp(existingItem.getTimestamp() + 1);
+
+
+
+            System.out.println("Item updated: " + existingItem.getItemName());
+        }
+
+
     }
 
-    public void removeItem(int index) {
-        if (index >= 0 && index < items.size()) {
-            items.remove(index);
+
+    // Method to remove an item from the shopping list
+    public void removeItem(String itemName) {
+        itemList.remove(itemName);
+    }
+
+
+
+
+    public void displayShoppingList() {
+        System.out.println("Shopping List (" + listId + ")");
+        System.out.println("STATE: " + state);
+
+        if (itemList.isEmpty()) {
+            System.out.println("The shopping list is empty.");
+        } else {
+            System.out.println("Items:");
+
+            for (Map.Entry<String, CRDTItem> entry : itemList.entrySet()) {
+                CRDTItem item = entry.getValue();
+
+                if(item.getQuantity() != 0){// if item has quantity 0 it should not be displayed to the client, means the client deleted it and it has not yet synchronized with the server
+                    System.out.println("  - " + item.getItemName() +
+                            " | Quantity: " + item.getQuantity() +
+                            " | Timestamp: " + item.getTimestamp());
+                }else{
+                    System.out.println("  - "+"Deleted " + item.getItemName() +
+                            " | Quantity: " + item.getQuantity() +
+                            " | Timestamp: " + item.getTimestamp());
+                }
+            }
+
         }
     }
 
-    // Getters and setters
 
-    public String getName() {
-        return this.name;
-    }
-    public UUID getUUID() {
-        return uuid;
-    }
-
-    public void setName(String name){
-        this.name = name;
-    }
-
-    public List<Item> getItems(){
-        return this.items;
-    }
-
-
-
-
-    public void displayList() {
-            List<Item> items = this.items;
-            System.out.println("Items:");
-            for (int i = 0; i < items.size(); i++) {
-                Item item = items.get(i);
-                System.out.println((i + 1) + ". " + item.getName() + " (Quantity: " + item.getQuantity() + ")");
-
-            }
-            System.out.print("\n");
-    }
-    public void saveToFile() {
-        // Implement saving the shopping list to a file
-    }
-
-    public void loadFromFile() {
-        // Implement loading the shopping list from a file
-    }
 }

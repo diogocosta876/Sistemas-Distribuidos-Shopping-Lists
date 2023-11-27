@@ -13,7 +13,7 @@ import org.example.ShoppingList.ShoppingList;
 public class ShoppingListManager {
     private List<ShoppingList> shoppingLists;
     private User user;
-    private String userDirectoryPath;
+    private final String userDirectoryPath;
 
     public ShoppingListManager(User user){
         this.shoppingLists = new ArrayList<>();
@@ -24,7 +24,7 @@ public class ShoppingListManager {
 
     public void createShoppingList(String listName) {
         ShoppingList shoppingList = new ShoppingList(listName);
-        String listId = generateCustomID(user.uuid.toString());
+
         shoppingLists.add(shoppingList);
         this.user.setLists(shoppingLists);
         System.out.println("Shopping list created: " + listName);
@@ -32,7 +32,7 @@ public class ShoppingListManager {
 
     public void addShoppingList(ShoppingList shoppingList){
         for (ShoppingList list : shoppingLists) {
-            if (list.getName().equals(shoppingList.getName())) {
+            if (list.getListName().equals(shoppingList.getListName())) {
                 System.out.println("List with the same name already exists");
                 return;
             }
@@ -42,7 +42,7 @@ public class ShoppingListManager {
 
     public void deleteShoppingList(String listName) {
         // Find and remove the shopping list from the in-memory list
-        boolean isRemoved = shoppingLists.removeIf(list -> list.getName().equals(listName));
+        boolean isRemoved = shoppingLists.removeIf(list -> list.getListName().equals(listName));
 
         if (isRemoved) {
             // If a list was removed, update the user's lists and save to JSON
@@ -65,38 +65,33 @@ public class ShoppingListManager {
         System.out.println("Shopping Lists:");
         List<ShoppingList> lists = this.shoppingLists;
         for (int i = 0; i < lists.size(); i++) {
-            System.out.println((i + 1) + ". " + lists.get(i).getName());
+            System.out.println((i + 1) + ". " + lists.get(i).getListName());
         }
     }
 
     public void saveShoppingList(ShoppingList shoppingList) {
         for (int i = 0; i < user.getLists().size(); i++) {
-            System.out.println(this.shoppingLists.get(i).getName());
+            System.out.println(this.shoppingLists.get(i).getListName());
         }
         System.out.println("after");
         this.shoppingLists.add(shoppingList);
         user.setLists(this.shoppingLists);
         for (int i = 0; i < user.getLists().size(); i++) {
-            System.out.println(this.shoppingLists.get(i).getName());
+            System.out.println(this.shoppingLists.get(i).getListName());
         }
         user.saveToJson();
     }
 
-    public String generateCustomID(String userId) {
-        long seed = System.currentTimeMillis();
-        Random random = new Random(seed);
-        return "user_" + userId+ "_"  + Math.abs(random.nextInt())  + Math.abs(random.nextInt())+ ".txt";
-    }
 
     public void updateList(ShoppingList selectedList) {
-        if (selectedList != null && selectedList.getName() != null) {
+        if (selectedList != null && selectedList.getListName() != null) {
             // Iterate over the shoppingLists to find the matching list by name
             for (int i = 0; i < shoppingLists.size(); i++) {
-                if (shoppingLists.get(i).getName().equals(selectedList.getName())) {
+                if (shoppingLists.get(i).getListName().equals(selectedList.getListName())) {
                     //print items from selected list
-                    shoppingLists.get(i).displayList();
+                    shoppingLists.get(i).displayShoppingList();
                     shoppingLists.set(i, selectedList);
-                    System.out.println("List updated: " + selectedList.getName());
+                    System.out.println("List updated: " + selectedList.getListName());
                 }
             }
         } else {

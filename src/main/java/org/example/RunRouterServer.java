@@ -77,7 +77,7 @@ public class RunRouterServer {
         String requestString = gson.toJson(requestPacket);
 
         ShoppingList list = gson.fromJson(requestPacket.getMessageBody(), ShoppingList.class);
-        String listID = list.getUUID().toString();
+        String listID = list.getListId().toString();
         System.out.println("[LOG] Requested list ID: " + listID);
 
         List<String> servers = hashRing.getServers(listID);

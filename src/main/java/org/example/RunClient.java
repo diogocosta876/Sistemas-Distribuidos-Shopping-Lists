@@ -3,7 +3,7 @@ package org.example;
 import com.google.gson.Gson;
 import org.example.Messaging.Packet;
 import org.example.Messaging.States;
-import org.example.ShoppingList.Item;
+import org.example.ShoppingList.CRDTItem;
 import org.example.ShoppingList.ShoppingList;
 import org.example.ShoppingList.ShoppingListManager;
 import org.example.Client.User;
@@ -16,9 +16,20 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Scanner;
 import java.util.UUID;
+import java.util.ArrayList;
+
+
+//TODO change display to not display items with CRDT quant = 0
+//TODO when updating list with remote change selected list
+//TODO implement timeStamps
+//TODO fix item only using time one time
 
 public class RunClient {
+
+    private User user;
     private ShoppingListManager listManager;
+
+    List<String> UpdatedItemsList = new ArrayList<>();
     private ShoppingList selectedList;
     private final Scanner scanner;
     private boolean online;
@@ -79,16 +90,20 @@ public class RunClient {
     }
 
     public void run() throws IOException {
-        User user = new User();
+        this.user = new User();
         if (!user.authenticate()) return;
 
         this.listManager = new ShoppingListManager(user);
 
+
+
         while (true) {
             if(selectedList != null){
-                System.out.println("Selected List: "+this.selectedList.getName());
-                this.selectedList.displayList();
+                System.out.println("Selected List: "+this.selectedList.getListName());
+                this.selectedList.displayShoppingList();
             }
+
+            System.out.println(UpdatedItemsList);
 
             System.out.println("1. Create a new shopping list");
             System.out.println("2. Select a shopping list");
@@ -111,7 +126,7 @@ public class RunClient {
                         String listName = scanner.nextLine();
                         this.listManager.createShoppingList(listName);
                         selectedList = this.listManager.getShoppingLists().get(this.listManager.getShoppingLists().size()-1);
-                        synchronizeShoppingList(selectedList);
+
                         break;
                     case 2:
                         if(!listManager.getShoppingLists().isEmpty())
@@ -122,18 +137,16 @@ public class RunClient {
                         }
                         break;
                     case 3:
-                        addItemToSelectedList();
-                        this.listManager.updateList(selectedList);
-                        synchronizeShoppingList(selectedList);
+                        addItemToSelectedList(UpdatedItemsList);
+                        this.listManager.updateList(selectedList);// acho que n é necessario mas n tenho a certeza
                         break;
                     case 4:
                         deleteItemFromSelectedList();
                         listManager.updateList(selectedList);
-                        synchronizeShoppingList(selectedList);
                         break;
                     case 5:
-                        listManager.deleteShoppingList(selectedList.getName());
-                        synchronizeDeleteShoppingList(selectedList.getUUID());
+                        listManager.deleteShoppingList(selectedList.getListName());
+                        synchronizeDeleteShoppingList(selectedList.getListId());
                         selectedList = null;
                         break;
                     case 6:
@@ -143,14 +156,20 @@ public class RunClient {
                         System.out.println("Synchronizing lists...");
                         List<ShoppingList> lists = synchronizeShoppingLists();
                         for (ShoppingList list : lists) {
-                            System.out.println("List: " + list.getName());
-                            for (Item item : list.getItems()) {
-                                System.out.println("\tItem: " + item.getName() + " - " + item.getQuantity());
-                            }
+                            list.displayShoppingList();
+
                         }
                         break;
                     default:
                         System.out.println("Invalid choice. Please try again.");
+                }
+
+                if(choice == 1 || choice == 3 || choice == 4){ //selected list changed so try to update list with server
+                    selectedList.setState(org.example.ShoppingList.States.LOCAL_CHANGES);
+                    synchronizeShoppingList(selectedList);
+                    if(selectedList.getState()== org.example.ShoppingList.States.UPDATED){
+                        UpdatedItemsList.clear();//clearing local updates tracker
+                    }
                 }
             }
 
@@ -166,6 +185,7 @@ public class RunClient {
 
         if (choice > 0 && choice <= listManager.getShoppingLists().size()) {
             selectedList = listManager.getShoppingLists().get(choice - 1);
+            UpdatedItemsList.clear();// clearing track of current items because other list was selected
         } else if (choice == 0) {
             System.out.println("Canceled selection.");
         } else {
@@ -173,7 +193,7 @@ public class RunClient {
         }
     }
 
-    private void addItemToSelectedList() {
+    private void addItemToSelectedList(List<String> UpdatedItemsList) {
         if (selectedList == null) {
             return;
         }
@@ -183,9 +203,20 @@ public class RunClient {
         System.out.print("Enter the item quantity: ");
         int itemQuantity = scanner.nextInt();
         scanner.nextLine();
+        CRDTItem item = new CRDTItem(itemName,itemQuantity,0,user.uuid);
+        if((selectedList.getItemList().containsKey(itemName)&& selectedList.getItemList().get(itemName).getTimestamp() != 0)||selectedList.getState() == org.example.ShoppingList.States.IMPORTED){// if the item being created already exists in the list then it is an update so
+                                                                // if the list is in local_changes the item should only update its timestamp once
+            if(!UpdatedItemsList.contains(itemName)){
+                UpdatedItemsList.add(itemName);
+                item.setTimestamp(selectedList.getItemList().get(itemName).getTimestamp()+1);
+            }else{
+                item.setTimestamp(selectedList.getItemList().get(itemName).getTimestamp());//if the item exists and it was already changed in this version
+                                                                                            // then the timestamp stays the same
+            }
+        }
 
-        Item item = new Item(itemName, itemQuantity);
         selectedList.addItem(item);
+
         System.out.println("Item added to the selected list.");
     }
 
@@ -193,13 +224,26 @@ public class RunClient {
         if (selectedList == null) {
             return;
         }
+
+        selectedList.displayShoppingList();
+
         System.out.print("Enter the number of the item to delete (0 to cancel): ");
         int choice = scanner.nextInt();
-        scanner.nextLine(); // Consume newline
+        scanner.nextLine();
 
-        if (choice > 0 && choice <= selectedList.getItems().size()) {
-            selectedList.removeItem(choice - 1);
-            System.out.println("Item deleted from the selected list.");
+        if (choice > 0 && choice <= selectedList.getItemList().size()) {
+
+            if(selectedList.getItemList().get(selectedList.getItemList().keySet().toArray()[choice-1].toString()).getQuantity()==0){
+                System.out.println("Item already deleted from the selected list. Waiting Sync");
+            }else{
+                String itemNameToDelete = selectedList.getItemList().keySet().toArray()[choice - 1].toString();
+                //selectedList.removeItem(itemNameToDelete);
+                CRDTItem item = selectedList.getItemList().get(itemNameToDelete);
+                item.setTimestamp(item.getTimestamp()+1);//updating timestamp
+                item.setQuantity(0);// setting quantity to 0 so merge function in server can handle it
+                System.out.println("Item deleted from the selected list.");
+            }
+
         } else if (choice == 0) {
             System.out.println("Canceled deletion.");
         } else {
@@ -238,6 +282,11 @@ public class RunClient {
 
         if (reply.getState() == States.LIST_UPDATE_COMPLETED) {
             System.out.println("[LOG] List updated successfully on the server.");
+            selectedList = gson.fromJson(reply.getMessageBody(), ShoppingList.class);
+
+            selectedList.setState(org.example.ShoppingList.States.UPDATED);
+            listManager.updateList(selectedList);
+
         } else if (reply.getState() == States.LIST_UPDATE_FAILED) {
             System.out.println("[LOG] Failed to update list on the server.");
         } else {
