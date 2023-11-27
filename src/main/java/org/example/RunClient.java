@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import org.example.Messaging.Packet;
 import org.example.Messaging.States;
 import org.example.ShoppingList.CRDTItem;
-import org.example.ShoppingList.Item;
 import org.example.ShoppingList.ShoppingList;
 import org.example.ShoppingList.ShoppingListManager;
 import org.example.Client.User;
