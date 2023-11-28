@@ -1,0 +1,17 @@
+{
+  "uuid": "1e12d248-7b70-44cb-aad3-cb50e234d837",
+  "lists": [
+    {
+      "listId": "70405457-6b77-4922-a3e4-16c7f9e2758d",
+      "listName": "lista de compras",
+      "itemList": {
+        "pao": {
+          "itemName": "pao",
+          "quantity": 1,
+          "timestamp": 0,
+          "userId": "1e12d248-7b70-44cb-aad3-cb50e234d837"
+        }
+      }
+    }
+  ]
+}
