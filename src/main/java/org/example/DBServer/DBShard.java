@@ -25,7 +25,7 @@ public class DBShard {
     private final int port;
     private final ZMQ.Socket socket;
 
-    private List<String> deletedLists;
+
 
     public DBShard(String shardFilePath, int shardNumber, int port) {
         this.shardFilePath = shardFilePath;
@@ -34,7 +34,6 @@ public class DBShard {
         this.context = new ZContext();
         this.socket = context.createSocket(SocketType.ROUTER);
         this.socket.bind("tcp://*:" + port);
-        this.deletedLists = new ArrayList<String>();
     }
 
     public void run() throws IOException {
@@ -65,24 +64,13 @@ public class DBShard {
                     responseList = updateShoppingList(updatedList);
                     if(responseList == null){
                         responsePacket = new Packet(States.LIST_UPDATE_FAILED, "Update failed, Could not save file on server");
-                    }else if(responseList.getState().equals(org.example.ShoppingList.States.UNTRACKED)){
-                        responsePacket = new Packet(States.LIST_UPDATE_FAILED, "List already deleted");
                     }
                     else{
                         String list = gson.toJson(responseList);
-                        responsePacket = new Packet(States.LIST_UPDATE_COMPLETED, list );
-                    }
+                        responsePacket = new Packet(States.LIST_UPDATE_COMPLETED, list );                    }
 
 
                     break;
-
-                case LIST_DELETE_REQUESTED:
-                    String listNameToDelete = gson.fromJson(requestPacket.getMessageBody(), String.class);
-                    responsePacket = deleteShoppingList(listNameToDelete) ?
-                            new Packet(States.LIST_DELETE_COMPLETED, "Deletion successful") :
-                            new Packet(States.LIST_DELETE_FAILED, "Deletion failed");
-                    break;
-
                 case RETRIEVE_LISTS_REQUESTED:
                     List<ShoppingList> allLists = loadShoppingLists();
                     String allListsJson = gson.toJson(allLists);
@@ -120,39 +108,20 @@ public class DBShard {
 
         // list does not exist in server
         if (!listExists) {
-            //check if it was deleted by other user
-            if(deletedLists.contains(updatedList.getListId().toString())){
-                updatedList.setState(org.example.ShoppingList.States.UNTRACKED);
-            }else{
-                // else add it into the server
-                existingLists.add(updatedList);
-            }
+
+            //add it into the server
+            existingLists.add(updatedList);
+
         }
 
-        if(updatedList.getState().equals(org.example.ShoppingList.States.UNTRACKED)){
-            return updatedList;
+        if(!saveUpdatedListsToFile(existingLists)){
+            return null;
         }else{
-            if(!saveUpdatedListsToFile(existingLists)){
-                return null;
-            }else{
-                return updatedList;
-            }
+            return updatedList;
         }
-
-
-
 
     }
 
-    private boolean deleteShoppingList(String listID) throws IOException {
-        List<ShoppingList> lists = loadShoppingLists();
-
-
-        if(lists.removeIf(list -> list.getListId().toString().equals(listID))){
-            deletedLists.add(listID);// keeping track of lists removed
-        }
-        return saveUpdatedListsToFile(lists);
-    }
 
 
     private List<ShoppingList> loadShoppingLists() throws IOException {

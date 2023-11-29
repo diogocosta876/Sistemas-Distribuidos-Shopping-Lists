@@ -1,0 +1,14 @@
+[
+  {
+    "listId": "926622ff-82e6-43a6-87e1-d2a364ecfc64",
+    "listName": "lista nova",
+    "itemList": {
+      "cebola": {
+        "itemName": "cebola",
+        "quantity": 1,
+        "timestamp": 0,
+        "userId": "1e12d248-7b70-44cb-aad3-cb50e234d837"
+      }
+    }
+  }
+]

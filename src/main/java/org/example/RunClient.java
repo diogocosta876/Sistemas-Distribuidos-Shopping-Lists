@@ -146,7 +146,6 @@ public class RunClient {
                         break;
                     case 5:
                         listManager.deleteShoppingList(selectedList.getListId());
-                        synchronizeDeleteShoppingList(selectedList.getListId());
                         selectedList = null;
                         break;
                     case 6:
@@ -249,26 +248,6 @@ public class RunClient {
     }
 
 
-    //TODO change behavior when update fails
-    public void synchronizeDeleteShoppingList(UUID listUuid) throws IOException {
-        if (listUuid == null) {
-            System.out.println("Invalid list identifier.");
-            return;
-        }
-        String listUuidJson = gson.toJson(listUuid);
-
-        sendRequest(new Packet(States.LIST_DELETE_REQUESTED, listUuidJson));
-        Packet reply = receiveReply();
-
-        if (reply.getState() == States.LIST_DELETE_COMPLETED) {
-            System.out.println("List successfully deleted on the server.");
-        } else if (reply.getState() == States.LIST_DELETE_FAILED) {
-            System.out.println("Failed to delete list on the server.");
-        } else {
-            System.out.println("Unexpected response from server for delete request.");
-        }
-    }
-
 
     public void synchronizeShoppingList(ShoppingList list) throws IOException {
         if (list == null) {
@@ -288,11 +267,7 @@ public class RunClient {
 
         } else if (reply.getState() == States.LIST_UPDATE_FAILED) {
             System.out.println("[LOG] Failed to update list on the server.");
-            if(reply.getMessageBody().equals("List already deleted")){
-                System.out.println(reply.getMessageBody()+ " Your changes will now be discarded.");
-                selectedList = null;
-                listManager.deleteShoppingList(list.getListId());
-            }
+
         } else {
             System.out.println("Unexpected response from server.");
         }
