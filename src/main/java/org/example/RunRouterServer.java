@@ -9,6 +9,7 @@ import org.example.ShoppingList.ShoppingList;
 import org.zeromq.*;
 
 import java.util.List;
+import java.util.Map;
 
 public class RunRouterServer {
     private final ZMQ.Socket clientSocket;
@@ -16,14 +17,15 @@ public class RunRouterServer {
     private final Gson gson;
     private HashRing hashRing;
 
-    public RunRouterServer(int port, HashFunction hashFunction, int numberOfShardReplicas) {
+    public RunRouterServer(int port, HashFunction hashFunction) {
 
         this.clientSocket = context.createSocket(SocketType.ROUTER);
         this.clientSocket.bind("tcp://*:" + port);
 
-        this.hashRing = new HashRing(hashFunction, numberOfShardReplicas);
+        this.hashRing = new HashRing(hashFunction);
         hashRing.addServer("tcp://localhost:5556");
         hashRing.addServer("tcp://localhost:5557");
+        hashRing.addServer("tcp://localhost:5558");
 
         //DEBUG
         System.out.println(hashRing.displayAllServers());
@@ -80,12 +82,14 @@ public class RunRouterServer {
         String listID = list.getListId().toString();
         System.out.println("[LOG] Requested list ID: " + listID);
 
-        List<String> servers = hashRing.getServers(listID);
-        String primaryServer = servers.get(0); //pick primary server TODO handle failure
-        System.out.println("[LOG] Forwarding request to DB server: " + primaryServer);
+        Map<Integer, String> serverInfo = hashRing.getServer(listID);
+        Map.Entry<Integer, String> entry = serverInfo.entrySet().iterator().next();
+        Integer hash = entry.getKey();
+        String serverIP = entry.getValue();
+        System.out.println("[LOG] Forwarding request to DB server: " + serverIP);
 
         ZMQ.Socket dbSocket = context.createSocket(SocketType.DEALER);
-        dbSocket.connect(primaryServer);
+        dbSocket.connect(serverIP);
 
         dbSocket.send(requestString.getBytes(ZMQ.CHARSET), 0);
         System.out.println("[LOG] Request forwarded to DB server");
@@ -99,7 +103,7 @@ public class RunRouterServer {
 
 
     public static void main(String[] args) {
-        RunRouterServer loadBalancer = new RunRouterServer(5555, new SimpleHashFunction(), 1 );
+        RunRouterServer loadBalancer = new RunRouterServer(5555, new SimpleHashFunction());
         loadBalancer.run();
     }
 }
