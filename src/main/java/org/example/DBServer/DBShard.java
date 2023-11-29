@@ -14,6 +14,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class DBShard {
@@ -24,6 +25,8 @@ public class DBShard {
     private final int port;
     private final ZMQ.Socket socket;
 
+    private List<String> deletedLists;
+
     public DBShard(String shardFilePath, int shardNumber, int port) {
         this.shardFilePath = shardFilePath;
         this.port = port;
@@ -31,6 +34,7 @@ public class DBShard {
         this.context = new ZContext();
         this.socket = context.createSocket(SocketType.ROUTER);
         this.socket.bind("tcp://*:" + port);
+        this.deletedLists = new ArrayList<String>();
     }
 
     public void run() throws IOException {
@@ -60,8 +64,11 @@ public class DBShard {
                     updatedList.displayShoppingList();
                     responseList = updateShoppingList(updatedList);
                     if(responseList == null){
-                        responsePacket = new Packet(States.LIST_UPDATE_FAILED, "Update failed");
-                    }else{
+                        responsePacket = new Packet(States.LIST_UPDATE_FAILED, "Update failed, Could not save file on server");
+                    }else if(responseList.getState().equals(org.example.ShoppingList.States.UNTRACKED)){
+                        responsePacket = new Packet(States.LIST_UPDATE_FAILED, "List already deleted");
+                    }
+                    else{
                         String list = gson.toJson(responseList);
                         responsePacket = new Packet(States.LIST_UPDATE_COMPLETED, list );
                     }
@@ -103,24 +110,36 @@ public class DBShard {
         for (ShoppingList existingList : existingLists) {
             if (existingList.getListName().equals(updatedList.getListName())) {
 
-
                 merge(existingList, updatedList); // new way of dealing with existing lists implementing CRDT merge function
                 updatedList = existingList;
-                //existingLists.set(i, updatedList); //old way of dealing with existing lists was just overriding on server
                 listExists = true;
                 break;
             }
         }
 
+
+        // list does not exist in server
         if (!listExists) {
-            existingLists.add(updatedList);
+            //check if it was deleted by other user
+            if(deletedLists.contains(updatedList.getListId().toString())){
+                updatedList.setState(org.example.ShoppingList.States.UNTRACKED);
+            }else{
+                // else add it into the server
+                existingLists.add(updatedList);
+            }
         }
 
-        if(!saveUpdatedListsToFile(existingLists)){
-            return null;
-        }else{
+        if(updatedList.getState().equals(org.example.ShoppingList.States.UNTRACKED)){
             return updatedList;
+        }else{
+            if(!saveUpdatedListsToFile(existingLists)){
+                return null;
+            }else{
+                return updatedList;
+            }
         }
+
+
 
 
     }
@@ -128,7 +147,10 @@ public class DBShard {
     private boolean deleteShoppingList(String listID) throws IOException {
         List<ShoppingList> lists = loadShoppingLists();
 
-        lists.removeIf(list -> list.getListId().toString().equals(listID));
+
+        if(lists.removeIf(list -> list.getListId().toString().equals(listID))){
+            deletedLists.add(listID);// keeping track of lists removed
+        }
         return saveUpdatedListsToFile(lists);
     }
 

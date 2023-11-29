@@ -138,14 +138,14 @@ public class RunClient {
                         break;
                     case 3:
                         addItemToSelectedList(UpdatedItemsList);
-                        this.listManager.updateList(selectedList);// acho que n é necessario mas n tenho a certeza
+                        this.listManager.updateList(selectedList);
                         break;
                     case 4:
                         deleteItemFromSelectedList();
                         listManager.updateList(selectedList);
                         break;
                     case 5:
-                        listManager.deleteShoppingList(selectedList.getListName());
+                        listManager.deleteShoppingList(selectedList.getListId());
                         synchronizeDeleteShoppingList(selectedList.getListId());
                         selectedList = null;
                         break;
@@ -237,10 +237,7 @@ public class RunClient {
                 System.out.println("Item already deleted from the selected list. Waiting Sync");
             }else{
                 String itemNameToDelete = selectedList.getItemList().keySet().toArray()[choice - 1].toString();
-                //selectedList.removeItem(itemNameToDelete);
-                CRDTItem item = selectedList.getItemList().get(itemNameToDelete);
-                item.setTimestamp(item.getTimestamp()+1);//updating timestamp
-                item.setQuantity(0);// setting quantity to 0 so merge function in server can handle it
+                selectedList.removeItem(itemNameToDelete);
                 System.out.println("Item deleted from the selected list.");
             }
 
@@ -251,6 +248,8 @@ public class RunClient {
         }
     }
 
+
+    //TODO change behavior when update fails
     public void synchronizeDeleteShoppingList(UUID listUuid) throws IOException {
         if (listUuid == null) {
             System.out.println("Invalid list identifier.");
@@ -289,6 +288,11 @@ public class RunClient {
 
         } else if (reply.getState() == States.LIST_UPDATE_FAILED) {
             System.out.println("[LOG] Failed to update list on the server.");
+            if(reply.getMessageBody().equals("List already deleted")){
+                System.out.println(reply.getMessageBody()+ " Your changes will now be discarded.");
+                selectedList = null;
+                listManager.deleteShoppingList(list.getListId());
+            }
         } else {
             System.out.println("Unexpected response from server.");
         }

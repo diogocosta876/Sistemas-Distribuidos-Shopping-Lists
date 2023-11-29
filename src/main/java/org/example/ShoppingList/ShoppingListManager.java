@@ -4,6 +4,7 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 
 import com.google.gson.Gson;
 import org.example.Client.User;
@@ -40,16 +41,16 @@ public class ShoppingListManager {
         shoppingLists.add(shoppingList);
     }
 
-    public void deleteShoppingList(String listName) {
+    public void deleteShoppingList(UUID listId) {
         // Find and remove the shopping list from the in-memory list
-        boolean isRemoved = shoppingLists.removeIf(list -> list.getListName().equals(listName));
+        boolean isRemoved = shoppingLists.removeIf(list -> list.getListId().equals(listId));
 
         if (isRemoved) {
             // If a list was removed, update the user's lists and save to JSON
             user.setLists(shoppingLists);
-            System.out.println("Successfully deleted shopping list: " + listName);
+            System.out.println("Successfully deleted shopping list: " + listId);
         } else {
-            System.err.println("Shopping list not found: " + listName);
+            System.err.println("Shopping list not found: " + listId);
         }
     }
 

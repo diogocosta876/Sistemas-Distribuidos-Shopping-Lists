@@ -61,7 +61,9 @@ public class ShoppingList implements Serializable {
 
     // Method to remove an item from the shopping list
     public void removeItem(String itemName) {
-        itemList.remove(itemName);
+        CRDTItem item = getItemList().get(itemName);
+        item.setTimestamp(item.getTimestamp()+1);//updating timestamp
+        item.setQuantity(0);// setting quantity to 0 so merge function in server can handle it
     }
 
 
