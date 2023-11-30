@@ -8,7 +8,7 @@ import java.util.UUID;
 public class ShoppingList implements Serializable {
     private final UUID listId;
 
-    private final String listName;
+    private String listName;
     private Map<String, CRDTItem> itemList;
 
     private transient States state;
@@ -37,6 +37,8 @@ public class ShoppingList implements Serializable {
 
 
     public void setState(States newState){state = newState;}
+
+    public void setListName(String newName){listName = newName;}
 
 
     public void addItem(CRDTItem newItem) {

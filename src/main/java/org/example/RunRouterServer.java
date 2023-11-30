@@ -64,9 +64,10 @@ public class RunRouterServer {
 
             case LIST_UPDATE_REQUESTED:
             case LIST_DELETE_REQUESTED:
+            case RETRIEVE_LIST_REQUESTED:
                 return forwardRequestToDBServer(requestPacket);
 
-                //TODO implement RETRIVE ALL LISTS request
+                //TODO implement RETRIEVE ALL LISTS request
             default:
                 System.out.println("Invalid request state: " + requestPacket.getState());
                 return new Packet(States.LIST_UPDATE_FAILED, "Invalid request state");
@@ -75,10 +76,17 @@ public class RunRouterServer {
 
     private Packet forwardRequestToDBServer(Packet requestPacket) {
         String requestString = gson.toJson(requestPacket);
+        String listID;
 
-        ShoppingList list = gson.fromJson(requestPacket.getMessageBody(), ShoppingList.class);
-        String listID = list.getListId().toString();
-        System.out.println("[LOG] Requested list ID: " + listID);
+        if(requestPacket.getState().equals(States.RETRIEVE_LIST_REQUESTED)){
+            System.out.println("[LOG] Requested list ID: "+requestPacket.getMessageBody());
+            listID = requestPacket.getMessageBody();
+        }else{
+            ShoppingList list = gson.fromJson(requestPacket.getMessageBody(), ShoppingList.class);
+            listID = list.getListId().toString();
+            System.out.println("[LOG] Requested list ID: " + listID);
+        }
+
 
         List<String> servers = hashRing.getServers(listID);
         String primaryServer = servers.get(0); //pick primary server TODO handle failure

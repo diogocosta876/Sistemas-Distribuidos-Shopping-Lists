@@ -1,0 +1,17 @@
+{
+  "uuid": "b1dd3439-cda5-49fa-a4b7-2f522fefdaf2",
+  "lists": [
+    {
+      "listId": "2ecc2eaf-636e-4ee0-ae96-79e93160a5f7",
+      "listName": "lista teste import",
+      "itemList": {
+        "gasoile": {
+          "itemName": "gasoile",
+          "quantity": 1,
+          "timestamp": 0,
+          "userId": "b1dd3439-cda5-49fa-a4b7-2f522fefdaf2"
+        }
+      }
+    }
+  ]
+}

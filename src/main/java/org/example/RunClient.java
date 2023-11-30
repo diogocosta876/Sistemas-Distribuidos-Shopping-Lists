@@ -110,14 +110,15 @@ public class RunClient {
             System.out.println("3. Add item to the selected list");
             System.out.println("4. Delete item from the selected list");
             System.out.println("5. Delete current selected list");
-            System.out.println("6. Exit");
-            System.out.println("7. [TEMPORARY] Fetch all lists");
+            System.out.println("6. Import list");
+            System.out.println("7. Exit");
+            System.out.println("8. [TEMPORARY] Fetch all lists");
             System.out.print("Enter your choice: ");
 
             int choice = scanner.nextInt();
             scanner.nextLine(); // Consume newline
 
-            if(selectedList == null && choice != 1 && choice != 2 && choice != 6  && choice != 7){ //DELETE 7 LATER
+            if(selectedList == null && (choice == 3 || choice == 4 || choice == 5 )){
                 System.out.println("No list selected. Please select a list first.");
             }else{
                 switch (choice) {
@@ -146,12 +147,16 @@ public class RunClient {
                         break;
                     case 5:
                         listManager.deleteShoppingList(selectedList.getListId());
+                        UpdatedItemsList.clear();
                         selectedList = null;
                         break;
                     case 6:
+                        importShoppingList();
+                        break;
+                    case 7:
                         System.out.println("Goodbye!");
                         return;
-                    case 7:
+                    case 8:
                         System.out.println("Synchronizing lists...");
                         List<ShoppingList> lists = synchronizeShoppingLists();
                         for (ShoppingList list : lists) {
@@ -203,8 +208,12 @@ public class RunClient {
         int itemQuantity = scanner.nextInt();
         scanner.nextLine();
         CRDTItem item = new CRDTItem(itemName,itemQuantity,0,user.uuid);
-        if((selectedList.getItemList().containsKey(itemName)&& selectedList.getItemList().get(itemName).getTimestamp() != 0)||selectedList.getState() == org.example.ShoppingList.States.IMPORTED){// if the item being created already exists in the list then it is an update so
-                                                                // if the list is in local_changes the item should only update its timestamp once
+        if((selectedList.getItemList().containsKey(itemName))&& ((selectedList.getItemList().get(itemName).getTimestamp() != 0))||(selectedList.getState() == org.example.ShoppingList.States.IMPORTED)){// if the item being created already exists in the list then it is an update so
+            if(itemQuantity == selectedList.getItemList().get(itemName).getQuantity())  //same quantity to an item not an update                                                                        // if the list is in local_changes the item should only update its timestamp once
+            {
+                System.out.println("Same quantity this is not an update");
+                return;
+            }
             if(!UpdatedItemsList.contains(itemName)){
                 UpdatedItemsList.add(itemName);
                 item.setTimestamp(selectedList.getItemList().get(itemName).getTimestamp()+1);
@@ -289,6 +298,38 @@ public class RunClient {
             System.out.println("Unexpected response from server.");
         }
         return null;
+    }
+
+    public void importShoppingList(){
+
+
+        System.out.println("Insert the shopping list Id to import: ");
+        String listId = scanner.nextLine();
+
+        sendRequest(new Packet(States.RETRIEVE_LIST_REQUESTED, listId));
+        Packet reply = receiveReply();
+
+        if(reply.getState().equals(States.RETRIEVE_LIST_COMPLETED)){
+            System.out.println("[LOG] List imported successfully.");
+            System.out.println("Changing selected list to the imported list..");
+            ShoppingList importedList = gson.fromJson(reply.getMessageBody(), ShoppingList.class);
+
+            System.out.println("Imported list:");
+            importedList.displayShoppingList();
+            importedList.setState(org.example.ShoppingList.States.IMPORTED);
+            importedList.setListName(importedList.getListName()+" / Imported");
+            listManager.addShoppingList(importedList);
+            selectedList = importedList;
+
+
+        }else{
+            System.out.println("Unexpected response from server"); //TODO add messaging for client for him to know what happened
+        }
+
+
+
+
+
     }
 
     private void setConnectionMode(boolean online) {

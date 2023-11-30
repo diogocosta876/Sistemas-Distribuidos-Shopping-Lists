@@ -71,6 +71,16 @@ public class DBShard {
 
 
                     break;
+                case RETRIEVE_LIST_REQUESTED:
+                    ShoppingList requiredList = loadShoppingListWithId(requestPacket.getMessageBody());
+
+                    if(requiredList == null){
+                        responsePacket = new Packet(States.RETRIEVE_LIST_FAILED,"Request failed, list does not exist on server");
+                    }else{
+                        String list = gson.toJson(requiredList);
+                        responsePacket = new Packet(States.RETRIEVE_LIST_COMPLETED, list );
+                    }
+                    break;
                 case RETRIEVE_LISTS_REQUESTED:
                     List<ShoppingList> allLists = loadShoppingLists();
                     String allListsJson = gson.toJson(allLists);
@@ -81,10 +91,10 @@ public class DBShard {
                     responsePacket = new Packet(States.LIST_UPDATE_FAILED, "Invalid request state");
             }
         } catch (Exception e) {
-            responsePacket = new Packet(States.LIST_UPDATE_FAILED, "Error processing request: " + e.getMessage());
+            responsePacket = new Packet(States.LIST_UPDATE_FAILED, "Error processing request: " + e.getMessage()); //TODO this should not be this state
         }
 
-        String serializedResponse = gson.toJson(responsePacket);
+
         ZMsg responseMsg = new ZMsg();
         responseMsg.add(identityFrame);
         responseMsg.addString(gson.toJson(responsePacket));
@@ -96,7 +106,7 @@ public class DBShard {
         // Add or update the incoming list in the collection of existing lists
         boolean listExists = false;
         for (ShoppingList existingList : existingLists) {
-            if (existingList.getListName().equals(updatedList.getListName())) {
+            if (existingList.getListId().equals(updatedList.getListId())) {
 
                 merge(existingList, updatedList); // new way of dealing with existing lists implementing CRDT merge function
                 updatedList = existingList;
@@ -122,7 +132,29 @@ public class DBShard {
 
     }
 
+    private ShoppingList loadShoppingListWithId (String listId) throws IOException {
 
+        List<ShoppingList> shoppingLists;
+        File file = new File(shardFilePath);
+        if (!file.exists()) {
+            return null;
+        }
+
+        try (Reader reader = new FileReader(shardFilePath)) {
+            Type listType = new TypeToken<ArrayList<ShoppingList>>(){}.getType();
+            shoppingLists = gson.fromJson(reader, listType);
+        } catch (FileNotFoundException e) {
+            return null;
+        }
+
+        for (ShoppingList list : shoppingLists ) {
+            if (list.getListId().toString().equals(listId)) {
+                return list;
+            }
+        }
+
+        return null;
+    }
 
     private List<ShoppingList> loadShoppingLists() throws IOException {
         File file = new File(shardFilePath);

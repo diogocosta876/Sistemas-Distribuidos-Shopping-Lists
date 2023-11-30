@@ -34,11 +34,15 @@ public class ShoppingListManager {
     public void addShoppingList(ShoppingList shoppingList){
         for (ShoppingList list : shoppingLists) {
             if (list.getListName().equals(shoppingList.getListName())) {
-                System.out.println("List with the same name already exists");
-                return;
+                if(!list.getState().equals(States.IMPORTED)){
+                    System.out.println("List with the same name already exists");
+                    return;
+                }
+
             }
         }
         shoppingLists.add(shoppingList);
+        user.setLists(shoppingLists);
     }
 
     public void deleteShoppingList(UUID listId) {
@@ -58,9 +62,6 @@ public class ShoppingListManager {
         return shoppingLists;
     }
 
-    public void setShoppingLists(List<ShoppingList> shoppingLists){
-        this.user.setLists(shoppingLists);
-    }
 
     public void displayShoppingLists() {
         System.out.println("Shopping Lists:");
@@ -70,18 +71,6 @@ public class ShoppingListManager {
         }
     }
 
-    public void saveShoppingList(ShoppingList shoppingList) {
-        for (int i = 0; i < user.getLists().size(); i++) {
-            System.out.println(this.shoppingLists.get(i).getListName());
-        }
-        System.out.println("after");
-        this.shoppingLists.add(shoppingList);
-        user.setLists(this.shoppingLists);
-        for (int i = 0; i < user.getLists().size(); i++) {
-            System.out.println(this.shoppingLists.get(i).getListName());
-        }
-        user.saveToJson();
-    }
 
 
     public void updateList(ShoppingList selectedList) {
