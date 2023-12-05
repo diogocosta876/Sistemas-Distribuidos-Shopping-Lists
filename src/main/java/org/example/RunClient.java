@@ -13,10 +13,7 @@ import org.zeromq.ZMQ;
 import org.zeromq.ZContext;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Scanner;
-import java.util.UUID;
-import java.util.ArrayList;
+import java.util.*;
 
 
 //TODO change display to not display items with CRDT quant = 0
@@ -31,6 +28,8 @@ public class RunClient {
 
     List<String> UpdatedItemsList = new ArrayList<>();
     private ShoppingList selectedList;
+
+    private Map<String,Integer> newConflicts = new HashMap<>();
     private final Scanner scanner;
     private boolean online;
     private final Gson gson = new Gson();
@@ -100,7 +99,12 @@ public class RunClient {
         while (true) {
             if(selectedList != null){
                 System.out.println("Selected List: "+this.selectedList.getListName());
-                this.selectedList.displayShoppingList();
+                if (newConflicts.isEmpty()) {
+                    this.selectedList.displayShoppingList();
+                } else {
+                    this.selectedList.displayShoppingListWithConflicts(newConflicts);
+                    this.newConflicts.clear();
+                }
             }
 
             System.out.println(UpdatedItemsList);
@@ -109,16 +113,17 @@ public class RunClient {
             System.out.println("2. Select a shopping list");
             System.out.println("3. Add item to the selected list");
             System.out.println("4. Delete item from the selected list");
-            System.out.println("5. Delete current selected list");
-            System.out.println("6. Import list");
-            System.out.println("7. Exit");
-            System.out.println("8. [TEMPORARY] Fetch all lists");
+            System.out.println("5. Update item in the selected list");
+            System.out.println("6. Delete current selected list");
+            System.out.println("7. Import list");
+            System.out.println("8. Exit");
+            System.out.println("9. [TEMPORARY] Fetch all lists");
             System.out.print("Enter your choice: ");
 
             int choice = scanner.nextInt();
             scanner.nextLine(); // Consume newline
 
-            if(selectedList == null && (choice == 3 || choice == 4 || choice == 5 )){
+            if(selectedList == null && (choice == 3 || choice == 4 || choice == 5 || choice == 6 )){
                 System.out.println("No list selected. Please select a list first.");
             }else{
                 switch (choice) {
@@ -138,7 +143,7 @@ public class RunClient {
                         }
                         break;
                     case 3:
-                        addItemToSelectedList(UpdatedItemsList);
+                        addItemToSelectedList();
                         this.listManager.updateList(selectedList);
                         break;
                     case 4:
@@ -146,17 +151,21 @@ public class RunClient {
                         listManager.updateList(selectedList);
                         break;
                     case 5:
+                        updateItemInSelectedList();
+                        listManager.updateList(selectedList);
+                        break;
+                    case 6:
                         listManager.deleteShoppingList(selectedList.getListId());
                         UpdatedItemsList.clear();
                         selectedList = null;
                         break;
-                    case 6:
+                    case 7:
                         importShoppingList();
                         break;
-                    case 7:
+                    case 8:
                         System.out.println("Goodbye!");
                         return;
-                    case 8:
+                    case 9:
                         System.out.println("Synchronizing lists...");
                         List<ShoppingList> lists = synchronizeShoppingLists();
                         for (ShoppingList list : lists) {
@@ -168,10 +177,12 @@ public class RunClient {
                         System.out.println("Invalid choice. Please try again.");
                 }
 
-                if(choice == 1 || choice == 3 || choice == 4){ //selected list changed so try to update list with server
+                if(choice == 1 || choice == 3 || choice == 4 || choice == 5){ //selected list changed so try to update list with server
                     selectedList.setState(org.example.ShoppingList.States.LOCAL_CHANGES);
                     synchronizeShoppingList(selectedList);
                     if(selectedList.getState()== org.example.ShoppingList.States.UPDATED){
+                        System.out.println("Item changed:");
+                        System.out.println(UpdatedItemsList);
                         UpdatedItemsList.clear();//clearing local updates tracker
                     }
                 }
@@ -196,8 +207,30 @@ public class RunClient {
             System.out.println("Invalid choice.");
         }
     }
+    private void updateItemInSelectedList(){
+        System.out.println("Name of the item to update: ");
+        String itemName = scanner.nextLine();
+        if(selectedList.getItemList().containsKey(itemName)){
+            System.out.println("Quantity: ");
+            int quantity = scanner.nextInt();
+            if(selectedList.getItemList().get(itemName).getQuantity() == quantity){
+                System.out.println("Same quantity this is not an update");
+                return;
+            }
+            selectedList.getItemList().get(itemName).setQuantity(quantity);
+            selectedList.getItemList().get(itemName).setUserId(user.uuid);
+            if(!UpdatedItemsList.contains(itemName)){
+                UpdatedItemsList.add(itemName);
+                selectedList.getItemList().get(itemName).setTimestamp(selectedList.getItemList().get(itemName).getTimestamp()+1);
 
-    private void addItemToSelectedList(List<String> UpdatedItemsList) {
+            }
+        }else{
+            System.out.println("No item found with that name");
+            return;
+        }
+    }
+
+    private void addItemToSelectedList() {
         if (selectedList == null) {
             return;
         }
@@ -207,25 +240,15 @@ public class RunClient {
         System.out.print("Enter the item quantity: ");
         int itemQuantity = scanner.nextInt();
         scanner.nextLine();
-        CRDTItem item = new CRDTItem(itemName,itemQuantity,0,user.uuid);
-        if((selectedList.getItemList().containsKey(itemName))&& ((selectedList.getItemList().get(itemName).getTimestamp() != 0)||(selectedList.getState() == org.example.ShoppingList.States.IMPORTED))){// if the item being created already exists in the list then it is an update so
-            if(itemQuantity == selectedList.getItemList().get(itemName).getQuantity())  //same quantity to an item not an update                                                                        // if the list is in local_changes the item should only update its timestamp once
-            {
-                System.out.println("Same quantity this is not an update");
-                return;
-            }
-            if(!UpdatedItemsList.contains(itemName)){
-                UpdatedItemsList.add(itemName);
-                item.setTimestamp(selectedList.getItemList().get(itemName).getTimestamp()+1);
-            }else{
-                item.setTimestamp(selectedList.getItemList().get(itemName).getTimestamp());//if the item exists and it was already changed in this version
-                                                                                            // then the timestamp stays the same
-            }
+        if(selectedList.getItemList().containsKey(itemName)){
+            System.out.println("Item already exists");
+            return;
+        }else{
+            CRDTItem item = new CRDTItem(itemName,itemQuantity,0,user.uuid);
+            UpdatedItemsList.add(itemName);
+            selectedList.addItem(item);
+            System.out.println("Item added to the selected list.");
         }
-
-        selectedList.addItem(item);
-
-        System.out.println("Item added to the selected list.");
     }
 
     private void deleteItemFromSelectedList() {
@@ -246,8 +269,10 @@ public class RunClient {
             }else{
                 String itemNameToDelete = selectedList.getItemList().keySet().toArray()[choice - 1].toString();
                 selectedList.removeItem(itemNameToDelete);
+                UpdatedItemsList.add(itemNameToDelete);
                 System.out.println("Item deleted from the selected list.");
             }
+
 
         } else if (choice == 0) {
             System.out.println("Canceled deletion.");
@@ -263,8 +288,16 @@ public class RunClient {
             System.out.println("No selected list to update.");
             return;
         }
+        Map<String,Integer> itemsUpdated = new HashMap<>();
+
+        for(String item : UpdatedItemsList){
+            itemsUpdated.put(item,0);
+        }
+
         String listJson = gson.toJson(list);
-        sendRequest(new Packet(States.LIST_UPDATE_REQUESTED, listJson));
+        Packet request = new Packet(States.LIST_UPDATE_REQUESTED, listJson);
+        request.setExtraInfo(itemsUpdated);
+        sendRequest(request);
         Packet reply = receiveReply();
 
         if (reply.getState() == States.LIST_UPDATE_COMPLETED) {
@@ -273,6 +306,8 @@ public class RunClient {
 
             selectedList.setState(org.example.ShoppingList.States.UPDATED);
             listManager.updateList(selectedList);
+
+            newConflicts = reply.getExtraInfo();
 
         } else if (reply.getState() == States.LIST_UPDATE_FAILED) {
             System.out.println("[LOG] Failed to update list on the server.");

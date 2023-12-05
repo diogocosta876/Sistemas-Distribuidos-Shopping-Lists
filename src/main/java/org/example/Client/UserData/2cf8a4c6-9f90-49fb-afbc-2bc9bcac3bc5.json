@@ -1,0 +1,32 @@
+{
+  "uuid": "2cf8a4c6-9f90-49fb-afbc-2bc9bcac3bc5",
+  "lists": [
+    {
+      "listId": "fbe5f1c6-a7f4-477b-9e2c-25058606a4ab",
+      "listName": "lista teste",
+      "itemList": {
+        "arroz": {
+          "itemName": "arroz",
+          "quantity": 2,
+          "timestamp": 1,
+          "userId": "cd6e60d0-7a7f-44c8-ba91-5b6d8b7f95ee",
+          "altered": false
+        },
+        "figo": {
+          "itemName": "figo",
+          "quantity": 1,
+          "timestamp": 0,
+          "userId": "cd6e60d0-7a7f-44c8-ba91-5b6d8b7f95ee",
+          "altered": false
+        },
+        "pao": {
+          "itemName": "pao",
+          "quantity": 3,
+          "timestamp": 1,
+          "userId": "2cf8a4c6-9f90-49fb-afbc-2bc9bcac3bc5",
+          "altered": false
+        }
+      }
+    }
+  ]
+}

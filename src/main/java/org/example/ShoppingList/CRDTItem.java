@@ -27,9 +27,13 @@ public class CRDTItem implements Serializable {
 
     public int getQuantity() {return quantity;}
 
+
     public void setQuantity(int newQuantity){ quantity = newQuantity;}
 
     public void setTimestamp(long timestamp) {this.timestamp = timestamp;}
+
+    public void setUserId(UUID newId){this.userId = newId;}
+
 
     @Override
     public boolean equals(Object o) {

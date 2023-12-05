@@ -77,9 +77,9 @@ public class ShoppingListManager {
         if (selectedList != null && selectedList.getListName() != null) {
             // Iterate over the shoppingLists to find the matching list by name
             for (int i = 0; i < shoppingLists.size(); i++) {
-                if (shoppingLists.get(i).getListName().equals(selectedList.getListName())) {
+                if (shoppingLists.get(i).getListId().equals(selectedList.getListId())) {
                     //print items from selected list
-                    shoppingLists.get(i).displayShoppingList();
+                    //shoppingLists.get(i).displayShoppingList();
                     shoppingLists.set(i, selectedList);
                     System.out.println("List updated: " + selectedList.getListName());
                 }
