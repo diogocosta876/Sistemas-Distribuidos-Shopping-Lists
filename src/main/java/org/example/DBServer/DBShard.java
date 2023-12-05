@@ -18,16 +18,14 @@ public class DBShard {
     private final String shardFilePath;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();;
     private final ZContext context;
-    private int shardNumber;
     private final int port;
     private final ZMQ.Socket socket;
+    private HashRing hashRing;
 
 
-
-    public DBShard(String shardFilePath, int shardNumber, int port) {
+    public DBShard(String shardFilePath, int port) {
         this.shardFilePath = shardFilePath;
         this.port = port;
-        this.shardNumber = shardNumber;
         this.context = new ZContext();
         this.socket = context.createSocket(SocketType.ROUTER);
         this.socket.bind("tcp://*:" + port);
@@ -48,12 +46,27 @@ public class DBShard {
         ZFrame contentFrame = msg.pop();
 
         String requestString = new String(contentFrame.getData(), ZMQ.CHARSET);
+
+        if ("ping".equals(requestString)) {
+            ZMsg responseMsg = new ZMsg();
+            responseMsg.add(identityFrame);
+            responseMsg.addString("pong");
+            System.out.println("connected to server");
+            responseMsg.send(socket);
+            return;
+        }
+
         Packet requestPacket = gson.fromJson(requestString, Packet.class);
 
 
         Packet responsePacket;
+        boolean shouldForward = false;
         try {
             switch (requestPacket.getState()) {
+                case LIST_UPDATE_REQUESTED_MAIN:
+                    shouldForward = true;
+                    requestPacket.setState(States.LIST_UPDATE_REQUESTED);
+                    requestString = gson.toJson(requestPacket);
                 case LIST_UPDATE_REQUESTED:
                     ShoppingList updatedList = gson.fromJson(requestPacket.getMessageBody(), ShoppingList.class);
                     updatedList.displayShoppingList();
@@ -75,11 +88,18 @@ public class DBShard {
                     responsePacket = new Packet(States.RETRIEVE_LISTS_COMPLETED, allListsJson);
                     break;
 
+                case HASH_RING_UPDATE:
+                    updateHashRing(requestPacket.getMessageBody());
+                    responsePacket = new Packet(States.HASH_RING_UPDATE_ACK, "Hash ring updated successfully");
+                    redistributeListsOnRingUpdate();
+                    break;
+
                 default:
                     responsePacket = new Packet(States.LIST_UPDATE_FAILED, "Invalid request state");
             }
         } catch (Exception e) {
-            responsePacket = new Packet(States.LIST_UPDATE_FAILED, "Error processing request: " + e.getMessage()); //TODO this should not be this state
+            responsePacket = new Packet(States.LIST_UPDATE_FAILED, "Error processing request: " + e.getMessage());
+            System.out.println("Error processing request: " + e.getMessage());
         }
 
 
@@ -87,7 +107,80 @@ public class DBShard {
         responseMsg.add(identityFrame);
         responseMsg.addString(gson.toJson(responsePacket));
         responseMsg.send(socket);
+
+        if (shouldForward) {
+            ShoppingList updatedList = gson.fromJson(requestPacket.getMessageBody(), ShoppingList.class);
+            Map<Integer, String> entry = hashRing.getServer(updatedList.getListId());
+            int hash = entry.keySet().iterator().next();
+            forwardRequestToNextServers(requestString, hash);
+        }
     }
+
+    private void updateHashRing(String hashRingData) {
+        this.hashRing = gson.fromJson(hashRingData, HashRing.class);
+        System.out.println("[LOG] Hash ring updated: \n" + hashRing.displayAllServers());
+    }
+
+    private void forwardRequestToNextServers(String requestString, int currentServerHash) {
+        System.out.println("[LOG] Forwarding request to next servers");
+        Map<Integer, String> nextServerInfo = hashRing.getNextServer(currentServerHash);
+        Map.Entry<Integer, String> nextServerEntry = nextServerInfo.entrySet().iterator().next();
+        int nextServerHash = nextServerEntry.getKey();
+        String nextServerAddress = nextServerEntry.getValue();
+
+        if (!nextServerAddress.equals("tcp://localhost:" + port)) {
+            sendToServer(nextServerAddress, requestString);
+        }
+
+        nextServerInfo = hashRing.getNextServer(nextServerHash);
+        nextServerEntry = nextServerInfo.entrySet().iterator().next();
+        String secondNextServerAddress = nextServerEntry.getValue();
+
+        if (!secondNextServerAddress.equals("tcp://localhost:" + port) && !secondNextServerAddress.equals(nextServerAddress)) {
+            sendToServer(secondNextServerAddress, requestString);
+        }
+    }
+
+    private void sendToServer(String serverAddress, String requestString) {
+        try (ZMQ.Socket forwardSocket = context.createSocket(SocketType.DEALER)) {
+            forwardSocket.connect(serverAddress);
+            forwardSocket.send(requestString.getBytes(ZMQ.CHARSET), 0);
+            System.out.println("[LOG] Request forwarded to server: " + serverAddress);
+
+            forwardSocket.setReceiveTimeOut(1000);
+
+            byte[] responseBytes = forwardSocket.recv(0);
+            if (responseBytes != null) {
+                String responseString = new String(responseBytes, ZMQ.CHARSET);
+                System.out.println("[LOG] Received response from server: " + serverAddress);
+            } else {
+                System.out.println("No response received within the timeout period.");
+            }
+        } catch (Exception e) {
+            System.out.println("Error forwarding request to server " + serverAddress + ": " + e.getMessage());
+        }
+    }
+
+    private void redistributeListsOnRingUpdate() {
+        try {
+            List<ShoppingList> allLists = loadShoppingLists();
+            for (ShoppingList list : allLists) {
+                Map<Integer, String> serverInfo = hashRing.getServer(list.getListId());
+                Integer hash = serverInfo.keySet().iterator().next();
+                String targetServer = serverInfo.get(hash);
+
+                if (!targetServer.equals("tcp://localhost:" + port)) {
+                    System.out.println("[LOG] Redistributing list " + list.getListId() + " to server " + targetServer);
+                    Packet updatePacket = new Packet(States.LIST_UPDATE_REQUESTED, gson.toJson(list));
+                    sendToServer(targetServer, gson.toJson(updatePacket));
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("Error while redistributing lists: " + e.getMessage());
+        }
+    }
+
+
 
     private ShoppingList withoutDeleted(ShoppingList existing) {
         ShoppingList list = new ShoppingList(existing.getListName(),existing.getListId());

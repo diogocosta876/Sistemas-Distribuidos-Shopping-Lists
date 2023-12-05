@@ -59,7 +59,7 @@ public class RunClient {
     }
 
     public Packet receiveReply() {
-        int rc = poller.poll(2000); // Wait for a maximum of 2 seconds
+        int rc = poller.poll(5000); // Set timeout
         if (rc == -1) {
             System.out.println("[LOG] Error polling socket.");
             return null;
@@ -295,7 +295,7 @@ public class RunClient {
         }
 
         String listJson = gson.toJson(list);
-        Packet request = new Packet(States.LIST_UPDATE_REQUESTED, listJson);
+        Packet request = new Packet(States.LIST_UPDATE_REQUESTED_MAIN, listJson);
         request.setExtraInfo(itemsUpdated);
         sendRequest(request);
         Packet reply = receiveReply();

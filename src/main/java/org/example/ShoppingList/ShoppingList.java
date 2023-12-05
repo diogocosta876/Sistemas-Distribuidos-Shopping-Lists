@@ -124,6 +124,7 @@ public class ShoppingList implements Serializable {
                         " | Timestamp: " + item.getTimestamp());
             }
 
+            i++;
         }
         for (Map.Entry<String, Integer> entry : newConflicts.entrySet()) {
             System.out.println( " - " + entry.getKey() +

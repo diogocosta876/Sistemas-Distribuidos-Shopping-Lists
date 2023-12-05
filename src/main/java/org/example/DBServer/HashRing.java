@@ -4,17 +4,21 @@ import java.util.*;
 
 public class HashRing {
     private final SortedMap<Integer, String> ring = new TreeMap<>();
-    private final HashFunction hashFunction;
 
-    public HashRing(HashFunction hashFunction) {
-        this.hashFunction = hashFunction;
+    public HashRing() {
+    }
+
+    private int hash(String key) {
+        int h = key.hashCode();
+        h ^= (h >>> 20) ^ (h >>> 12);
+        return h ^ (h >>> 7) ^ (h >>> 4);
     }
 
     public void addServer(String server) {
         int vnodeCount = 2; // Number of virtual nodes for each server
         for (int i = 0; i < vnodeCount; i++) {
             String vnodeKey = i + server + "#" + i;
-            int hash = hashFunction.hash(vnodeKey);
+            int hash = hash(vnodeKey);
             ring.put(hash, server);
         }
     }
@@ -33,7 +37,7 @@ public class HashRing {
         if (ring.isEmpty()) {
             return Collections.emptyMap();
         }
-        int hash = hashFunction.hash(key.toString());
+        int hash = hash(key.toString());
         SortedMap<Integer, String> tailMap = ring.tailMap(hash);
         hash = tailMap.isEmpty() ? ring.firstKey() : tailMap.firstKey();
         String server = ring.get(hash);
@@ -63,6 +67,16 @@ public class HashRing {
         Map<Integer, String> result = new HashMap<>();
         result.put(previousHash, serverIP);
         return result;
+    }
+
+    //get all servers in list
+    public List<String> getAllServerAddresses() {
+        List<String> servers = new ArrayList<>();
+        for (Map.Entry<Integer, String> entry : ring.entrySet()) {
+            String server = entry.getValue();
+            servers.add(server);
+        }
+        return servers;
     }
 
     public String displayAllServers() {

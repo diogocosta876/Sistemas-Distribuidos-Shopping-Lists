@@ -10,7 +10,7 @@ public class RunDBShard {
 
     public RunDBShard(int shardNumber) throws IOException {
         // Initialize shards with different file paths and unique ports
-        shard1 = new DBShard("./src/main/java/org/example/DBServer/Data/shard" + shardNumber + ".json", shardNumber, 5555 + shardNumber);
+        shard1 = new DBShard("./src/main/java/org/example/DBServer/Data/shard" + shardNumber + ".json", 5555 + shardNumber);
 
         shard1.run();
     }
