@@ -1,0 +1,47 @@
+{
+  "uuid": "2d711954-2c35-4728-a56c-7037efd2960d",
+  "lists": [
+    {
+      "listId": "0246a144-5778-405a-930d-1f8b059ab94b",
+      "listName": "test",
+      "itemList": {
+        "item2": {
+          "itemName": "item2",
+          "quantity": 1,
+          "timestamp": 0,
+          "userId": "2d711954-2c35-4728-a56c-7037efd2960d"
+        }
+      }
+    },
+    {
+      "listId": "aea90e30-cc60-4a28-951b-1e5445ef4601",
+      "listName": "nova",
+      "itemList": {
+        "testeitem": {
+          "itemName": "testeitem",
+          "quantity": 5,
+          "timestamp": 1,
+          "userId": "2d711954-2c35-4728-a56c-7037efd2960d"
+        }
+      }
+    },
+    {
+      "listId": "aea90e30-cc60-4a28-951b-1e5445ef4601",
+      "listName": "nova / Imported",
+      "itemList": {
+        "testeitem": {
+          "itemName": "testeitem",
+          "quantity": 5,
+          "timestamp": 1,
+          "userId": "2d711954-2c35-4728-a56c-7037efd2960d"
+        },
+        "testitem2": {
+          "itemName": "testitem2",
+          "quantity": 0,
+          "timestamp": 1,
+          "userId": "2d711954-2c35-4728-a56c-7037efd2960d"
+        }
+      }
+    }
+  ]
+}

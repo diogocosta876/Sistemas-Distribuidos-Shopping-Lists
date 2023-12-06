@@ -64,13 +64,15 @@ public class RunRouterServer {
             case HANDSHAKE_INITIATED:
                 System.out.println("[LOG] Handshake initiated by client.");
                 return new Packet(States.HANDSHAKE_COMPLETED, "[LOG] Handshake successful");
+            case HASH_RING_UPDATE:
+                System.out.println("[LOG] Received hash ring update request from DB server.");
+                return new Packet(States.HASH_RING_UPDATE_ACK, gson.toJson(hashRing));
 
             case LIST_UPDATE_REQUESTED_MAIN:
             case LIST_DELETE_REQUESTED:
             case RETRIEVE_LIST_REQUESTED:
                 return forwardRequestToDBServer(requestPacket);
 
-                //TODO implement RETRIEVE ALL LISTS request
             default:
                 System.out.println("Invalid request state: " + requestPacket.getState());
                 return new Packet(States.LIST_UPDATE_FAILED, "Invalid request state");
@@ -97,7 +99,7 @@ public class RunRouterServer {
 
                 ZMQ.Poller poller = context.createPoller(1);
                 poller.register(dbSocket, ZMQ.Poller.POLLIN);
-                boolean hasReply = poller.poll(1000) > 0; // 300 milliseconds timeout
+                boolean hasReply = poller.poll(2000) > 0; // 2000 milliseconds timeout
 
                 if (hasReply) {
                     String responseString = dbSocket.recvStr();

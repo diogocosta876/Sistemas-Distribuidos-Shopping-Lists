@@ -8,7 +8,11 @@ public class HashRing {
     public HashRing() {
     }
 
-    private int hash(String key) {
+    public SortedMap<Integer, String> getRing() {
+        return ring;
+    }
+
+    public int hash(String key) {//TODO CHANGE HASH TO PRIVATE
         int h = key.hashCode();
         h ^= (h >>> 20) ^ (h >>> 12);
         return h ^ (h >>> 7) ^ (h >>> 4);
