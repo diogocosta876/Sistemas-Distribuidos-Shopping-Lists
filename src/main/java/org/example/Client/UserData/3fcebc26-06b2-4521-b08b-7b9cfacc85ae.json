@@ -1,0 +1,17 @@
+{
+  "uuid": "3fcebc26-06b2-4521-b08b-7b9cfacc85ae",
+  "lists": [
+    {
+      "listId": "41a5f0d0-53f9-4338-913d-be253b210f81",
+      "listName": "user 2",
+      "itemList": {
+        "teste": {
+          "itemName": "teste",
+          "quantity": 1,
+          "timestamp": 0,
+          "userId": "3fcebc26-06b2-4521-b08b-7b9cfacc85ae"
+        }
+      }
+    }
+  ]
+}

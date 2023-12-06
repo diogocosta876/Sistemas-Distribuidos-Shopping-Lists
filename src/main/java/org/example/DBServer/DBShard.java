@@ -118,7 +118,7 @@ public class DBShard {
 
     private void updateHashRing(String hashRingData) {
         this.hashRing = gson.fromJson(hashRingData, HashRing.class);
-        System.out.println("[LOG] Hash ring updated: \n" + hashRing.displayAllServers());
+        System.out.println("\n[LOG] Hash ring updated: \n" + hashRing.displayAllServers());
     }
 
     private void forwardRequestToNextServers(String requestString, int currentServerHash) {
@@ -152,7 +152,7 @@ public class DBShard {
             byte[] responseBytes = forwardSocket.recv(0);
             if (responseBytes != null) {
                 String responseString = new String(responseBytes, ZMQ.CHARSET);
-                System.out.println("[LOG] Received response from server: " + serverAddress);
+                //System.out.println("[LOG] Received response from server: " + serverAddress);
             } else {
                 System.out.println("No response received within the timeout period.");
             }
@@ -170,8 +170,13 @@ public class DBShard {
                 String targetServer = serverInfo.get(hash);
 
                 if (!targetServer.equals("tcp://localhost:" + port)) {
+                    Map<String, Integer> itemMap = new HashMap<>();
+                    for (Map.Entry<String, CRDTItem> entry : list.getItemList().entrySet()) {
+                        itemMap.put(entry.getKey(), 0);
+                    }
                     System.out.println("[LOG] Redistributing list " + list.getListId() + " to server " + targetServer);
                     Packet updatePacket = new Packet(States.LIST_UPDATE_REQUESTED, gson.toJson(list));
+                    updatePacket.setExtraInfo(itemMap);
                     sendToServer(targetServer, gson.toJson(updatePacket));
                 }
             }
@@ -210,10 +215,8 @@ public class DBShard {
             }
         }
 
-
         // list does not exist in server
         if (!listExists) {
-
             //add it into the server
             existingLists.add(updatedList);
 
@@ -225,12 +228,8 @@ public class DBShard {
             String list = gson.toJson(updatedList);
             Packet packet = new Packet(States.LIST_UPDATE_COMPLETED, list );
             packet.setExtraInfo(conflicts);
-            System.out.println("SIZE: "+packet.getExtraInfo().size());
-
             return packet;
-
         }
-
     }
 
     private ShoppingList loadShoppingListWithId (String listId) throws IOException {
@@ -253,7 +252,6 @@ public class DBShard {
                 return list;
             }
         }
-
         return null;
     }
 
@@ -283,7 +281,6 @@ public class DBShard {
         }
     }
 
-
     public Map<String,Integer> merge(ShoppingList existingList, ShoppingList incomingList,Map<String,Integer> itemsUpdated) {
         Map<String,Integer> conflicts = new HashMap<>();
         for (Map.Entry<String, CRDTItem> entry : incomingList.getItemList().entrySet()) {
@@ -311,17 +308,14 @@ public class DBShard {
                 } else {
                     incomingItem.setTimestamp(0);// if an item was deleted my other user and is again pushed it should have timestamp 0 not 1
                     existingList.getItemList().put(itemName, incomingItem);
-
                 }
             }else{
                 if(existingList.getItemList().get(incomingItem.getItemName()).getQuantity() == 0){
                     conflicts.put(incomingItem.getItemName(),incomingItem.getQuantity());//if we catch this conflict is a special case and the show function on the client should behave differently
                 }
             }
-
         }
         System.out.println("[LOG] Num Conflicts found: "+conflicts.size());
         return conflicts;
-
     }
 }

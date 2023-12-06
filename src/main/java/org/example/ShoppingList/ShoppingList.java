@@ -80,8 +80,7 @@ public class ShoppingList implements Serializable {
 
 
     public void displayShoppingList() {
-        System.out.println("Shopping List (" + listId + ")");
-        System.out.println("STATE: " + state);
+        System.out.println("\nShopping List (" + listId + ")");
 
         if (itemList.isEmpty()) {
             System.out.println("The shopping list is empty.");
@@ -104,8 +103,7 @@ public class ShoppingList implements Serializable {
     }
 
     public void displayShoppingListWithConflicts(Map<String, Integer> newConflicts) {
-        System.out.println("Shopping List (" + listId + ")");
-        System.out.println("STATE: " + state);
+        System.out.println("\nShopping List (" + listId + ")");
 
         System.out.println("Items:");
         int i = 1;

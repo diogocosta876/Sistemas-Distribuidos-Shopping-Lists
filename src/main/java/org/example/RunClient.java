@@ -94,8 +94,6 @@ public class RunClient {
 
         this.listManager = new ShoppingListManager(user);
 
-
-
         while (true) {
             if(selectedList != null){
                 System.out.println("Selected List: "+this.selectedList.getListName());
@@ -106,9 +104,6 @@ public class RunClient {
                     this.newConflicts.clear();
                 }
             }
-
-            System.out.println(UpdatedItemsList);
-
             System.out.println("1. Create a new shopping list");
             System.out.println("2. Select a shopping list");
             System.out.println("3. Add item to the selected list");
@@ -192,7 +187,6 @@ public class RunClient {
     }
 
     private void selectShoppingList() {
-
         this.listManager.displayShoppingLists();
         System.out.print("Enter the number of the list to select (0 to cancel): ");
         int choice = scanner.nextInt();
@@ -263,7 +257,6 @@ public class RunClient {
         scanner.nextLine();
 
         if (choice > 0 && choice <= selectedList.getItemList().size()) {
-
             if(selectedList.getItemList().get(selectedList.getItemList().keySet().toArray()[choice-1].toString()).getQuantity()==0){
                 System.out.println("Item already deleted from the selected list. Waiting Sync");
             }else{
@@ -272,8 +265,6 @@ public class RunClient {
                 UpdatedItemsList.add(itemNameToDelete);
                 System.out.println("Item deleted from the selected list.");
             }
-
-
         } else if (choice == 0) {
             System.out.println("Canceled deletion.");
         } else {
@@ -336,8 +327,6 @@ public class RunClient {
     }
 
     public void importShoppingList(){
-
-
         System.out.println("Insert the shopping list Id to import: ");
         String listId = scanner.nextLine();
 
@@ -348,23 +337,15 @@ public class RunClient {
             System.out.println("[LOG] List imported successfully.");
             System.out.println("Changing selected list to the imported list..");
             ShoppingList importedList = gson.fromJson(reply.getMessageBody(), ShoppingList.class);
-
             System.out.println("Imported list:");
             importedList.displayShoppingList();
             importedList.setState(org.example.ShoppingList.States.IMPORTED);
             importedList.setListName(importedList.getListName()+" / Imported");
             listManager.addShoppingList(importedList);
             selectedList = importedList;
-
-
         }else{
             System.out.println("Unexpected response from server"); //TODO add messaging for client for him to know what happened
         }
-
-
-
-
-
     }
 
     private void setConnectionMode(boolean online) {
