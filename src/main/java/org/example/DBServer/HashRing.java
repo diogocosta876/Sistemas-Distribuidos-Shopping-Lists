@@ -47,25 +47,33 @@ public class HashRing {
         return result;
     }
 
-    public Map<Integer, String> getNextServer(int hash) {
-        // Find the next key after the given hash
-        SortedMap<Integer, String> tailMap = ring.tailMap(hash + 1);
-        Integer nextHash = tailMap.isEmpty() ? ring.firstKey() : tailMap.firstKey();
+    public Map<Integer, String> getNextNthServer(int hash, int n) {
+        Integer currentHash = hash;
+        String serverIP = null;
 
-        String serverIP = ring.get(nextHash);
+        for (int i = 0; i < n; i++) {
+            SortedMap<Integer, String> tailMap = ring.tailMap(currentHash + 1);
+            currentHash = tailMap.isEmpty() ? ring.firstKey() : tailMap.firstKey();
+            serverIP = ring.get(currentHash);
+        }
+
         Map<Integer, String> result = new HashMap<>();
-        result.put(nextHash, serverIP);
+        result.put(currentHash, serverIP);
         return result;
     }
 
-    public Map<Integer, String> getPreviousServer(int hash) {
-        // Find the previous key before the given hash
-        SortedMap<Integer, String> headMap = ring.headMap(hash);
-        Integer previousHash = headMap.isEmpty() ? ring.lastKey() : headMap.lastKey();
+    public Map<Integer, String> getPreviousNthServer(int hash, int n) {
+        Integer currentHash = hash;
+        String serverIP = null;
 
-        String serverIP = ring.get(previousHash);
+        for (int i = 0; i < n; i++) {
+            SortedMap<Integer, String> headMap = ring.headMap(currentHash);
+            currentHash = headMap.isEmpty() ? ring.lastKey() : headMap.lastKey();
+            serverIP = ring.get(currentHash);
+        }
+
         Map<Integer, String> result = new HashMap<>();
-        result.put(previousHash, serverIP);
+        result.put(currentHash, serverIP);
         return result;
     }
 

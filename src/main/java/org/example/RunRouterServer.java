@@ -111,7 +111,7 @@ public class RunRouterServer {
             }
 
             // Get the next server in the ring
-            serverInfo = hashRing.getNextServer(hash);
+            serverInfo = hashRing.getNextNthServer(hash, 1);
             attempt++;
         }
 

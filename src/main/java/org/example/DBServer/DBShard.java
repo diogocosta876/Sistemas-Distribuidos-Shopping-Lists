@@ -12,11 +12,10 @@ import org.zeromq.*;
 import java.io.*;
 import java.lang.reflect.Type;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class DBShard {
     private final String shardFilePath;
-    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();;
+    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private final ZContext context;
     private final int port;
     private final ZMQ.Socket socket;
@@ -31,7 +30,7 @@ public class DBShard {
         this.socket.bind("tcp://*:" + port);
     }
 
-    public void run() throws IOException {
+    public void run() {
         System.out.println("DBShard Server Running on Port: " + port);
         while (!Thread.currentThread().isInterrupted()) {
             ZMsg msg = ZMsg.recvMsg(socket);
@@ -41,7 +40,7 @@ public class DBShard {
         }
     }
 
-    private void processRequest(ZMsg msg) throws IOException {
+    private void processRequest(ZMsg msg)  {
         ZFrame identityFrame = msg.pop();
         ZFrame contentFrame = msg.pop();
 
@@ -60,18 +59,74 @@ public class DBShard {
 
 
         Packet responsePacket;
-        boolean shouldForward = false;
         try {
+            ShoppingList updatedList;
             switch (requestPacket.getState()) {
                 case LIST_UPDATE_REQUESTED_MAIN:
-                    shouldForward = true;
+                    System.out.println("[LOG] Received MAIN write request");
+                    //forward to next server
                     requestPacket.setState(States.LIST_UPDATE_REQUESTED);
-                    requestString = gson.toJson(requestPacket);
-                case LIST_UPDATE_REQUESTED:
-                    ShoppingList updatedList = gson.fromJson(requestPacket.getMessageBody(), ShoppingList.class);
-                    updatedList.displayShoppingList();
-                    responsePacket = updateShoppingList(updatedList,requestPacket.getExtraInfo());
+                    updatedList = gson.fromJson(requestPacket.getMessageBody(), ShoppingList.class);
+                    Map<Integer, String> entry = hashRing.getServer(updatedList.getListId());
+                    int hash = entry.keySet().iterator().next();
+                    Packet forwardResponsePacket = forwardRequestToNextServer(requestPacket, hash);
+                    assert forwardResponsePacket != null;
+
+                    //merge the list from next server with the list from this server
+                    Map<String,Integer> extraInfo = forwardResponsePacket.getExtraInfo();
+                    ShoppingList responseList = gson.fromJson(forwardResponsePacket.getMessageBody(), ShoppingList.class);
+                    updateShoppingListOnServer(responseList, extraInfo);
+
+                    //merge the current list with the list from the user update
+                    System.out.println("[LOG] Merging lists");
+                    responsePacket = updateShoppingList(updatedList, requestPacket.getExtraInfo());
                     break;
+
+                case LIST_UPDATE_REQUESTED:
+                    updatedList = gson.fromJson(requestPacket.getMessageBody(), ShoppingList.class);
+                    updatedList.displayShoppingList();
+                    responsePacket = updateShoppingListOnServer(updatedList,requestPacket.getExtraInfo());
+                    break;
+
+                case RETRIEVE_LIST_REQUESTED_MAIN:
+                    System.out.println("[LOG] Received MAIN read request");
+                    //forward to next server
+                    requestPacket.setState(States.RETRIEVE_LIST_REQUESTED);
+                    ShoppingList requestedList = gson.fromJson(requestPacket.getMessageBody(), ShoppingList.class);
+                    entry = hashRing.getServer(requestedList.getListId());
+                    hash = entry.keySet().iterator().next();
+                    forwardResponsePacket = forwardRequestToNextServer(requestPacket, hash);
+                    assert forwardResponsePacket != null;
+                    extraInfo = forwardResponsePacket.getExtraInfo();
+
+                    //merge the list from next server with the list from this server
+                    if (forwardResponsePacket.getState() == States.RETRIEVE_LIST_FAILED) {
+                        responsePacket = new Packet(States.RETRIEVE_LIST_FAILED,"Request failed, list does not exist on next server");
+                        ShoppingList requiredList = loadShoppingListWithId(requestPacket.getMessageBody());
+
+                        if(requiredList == null){
+                            responsePacket = new Packet(States.RETRIEVE_LIST_FAILED,"Request failed, list does not exist on server");
+                        }else{ //list exists locally
+                            String list = gson.toJson(requiredList);
+                            responsePacket = new Packet(States.RETRIEVE_LIST_COMPLETED, list );
+                        }
+                        break;
+                    }
+                    else { //list exists on next server
+                        responseList = gson.fromJson(forwardResponsePacket.getMessageBody(), ShoppingList.class);
+                        updateShoppingListOnServer(responseList, extraInfo);
+                        //merge the current list with the list from the user update
+                        ShoppingList requiredList = loadShoppingListWithId(requestPacket.getMessageBody());
+                        merge(requiredList, responseList, extraInfo);
+
+                        if(requiredList == null){
+                            responsePacket = new Packet(States.RETRIEVE_LIST_FAILED,"Request failed, list does not exist on server");
+                        }else{ //list exists locally
+                            String list = gson.toJson(requiredList);
+                            responsePacket = new Packet(States.RETRIEVE_LIST_COMPLETED, list );
+                        }
+                        break;
+                    }
                 case RETRIEVE_LIST_REQUESTED:
                     ShoppingList requiredList = loadShoppingListWithId(requestPacket.getMessageBody());
 
@@ -91,6 +146,12 @@ public class DBShard {
                 case HASH_RING_UPDATE:
                     updateHashRing(requestPacket.getMessageBody());
                     responsePacket = new Packet(States.HASH_RING_UPDATE_ACK, "Hash ring updated successfully");
+                    //timeout to give time for all servers to update their hash rings
+                    try {
+                        Thread.sleep(2000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                     redistributeListsOnRingUpdate();
                     break;
 
@@ -107,13 +168,7 @@ public class DBShard {
         responseMsg.add(identityFrame);
         responseMsg.addString(gson.toJson(responsePacket));
         responseMsg.send(socket);
-
-        if (shouldForward) {
-            ShoppingList updatedList = gson.fromJson(requestPacket.getMessageBody(), ShoppingList.class);
-            Map<Integer, String> entry = hashRing.getServer(updatedList.getListId());
-            int hash = entry.keySet().iterator().next();
-            forwardRequestToNextServers(requestString, hash);
-        }
+        System.out.println("\n");
     }
 
     private void updateHashRing(String hashRingData) {
@@ -121,28 +176,28 @@ public class DBShard {
         System.out.println("\n[LOG] Hash ring updated: \n" + hashRing.displayAllServers());
     }
 
-    private void forwardRequestToNextServers(String requestString, int currentServerHash) {
-        System.out.println("[LOG] Forwarding request to next servers");
-        Map<Integer, String> nextServerInfo = hashRing.getNextServer(currentServerHash);
+    private Packet forwardRequestToNextServer(Packet requestPacket, int currentServerHash) {
+        Map<Integer, String> nextServerInfo = hashRing.getNextNthServer(currentServerHash, 1);
         Map.Entry<Integer, String> nextServerEntry = nextServerInfo.entrySet().iterator().next();
-        int nextServerHash = nextServerEntry.getKey();
         String nextServerAddress = nextServerEntry.getValue();
 
         if (!nextServerAddress.equals("tcp://localhost:" + port)) {
-            sendToServer(nextServerAddress, requestString);
+            return sendToServer(nextServerAddress, requestPacket);
         }
-
-        nextServerInfo = hashRing.getNextServer(nextServerHash);
-        nextServerEntry = nextServerInfo.entrySet().iterator().next();
-        String secondNextServerAddress = nextServerEntry.getValue();
-
-        if (!secondNextServerAddress.equals("tcp://localhost:" + port) && !secondNextServerAddress.equals(nextServerAddress)) {
-            sendToServer(secondNextServerAddress, requestString);
+        else {
+            nextServerInfo = hashRing.getNextNthServer(currentServerHash, 2);
+            nextServerEntry = nextServerInfo.entrySet().iterator().next();
+            nextServerAddress = nextServerEntry.getValue();
+            if (!nextServerAddress.equals("tcp://localhost:" + port)) {
+                return sendToServer(nextServerAddress, requestPacket);
+            }
         }
+        return null;
     }
 
-    private void sendToServer(String serverAddress, String requestString) {
+    private Packet sendToServer(String serverAddress, Packet requestPacket) {
         try (ZMQ.Socket forwardSocket = context.createSocket(SocketType.DEALER)) {
+            String requestString = gson.toJson(requestPacket);
             forwardSocket.connect(serverAddress);
             forwardSocket.send(requestString.getBytes(ZMQ.CHARSET), 0);
             System.out.println("[LOG] Request forwarded to server: " + serverAddress);
@@ -152,13 +207,15 @@ public class DBShard {
             byte[] responseBytes = forwardSocket.recv(0);
             if (responseBytes != null) {
                 String responseString = new String(responseBytes, ZMQ.CHARSET);
-                //System.out.println("[LOG] Received response from server: " + serverAddress);
+                System.out.println("[LOG] Received response from server: " + serverAddress);
+                return gson.fromJson(responseString, Packet.class);
             } else {
                 System.out.println("No response received within the timeout period.");
             }
         } catch (Exception e) {
             System.out.println("Error forwarding request to server " + serverAddress + ": " + e.getMessage());
         }
+        return null;
     }
 
     private void redistributeListsOnRingUpdate() {
@@ -175,9 +232,9 @@ public class DBShard {
                         itemMap.put(entry.getKey(), 0);
                     }
                     System.out.println("[LOG] Redistributing list " + list.getListId() + " to server " + targetServer);
-                    Packet updatePacket = new Packet(States.LIST_UPDATE_REQUESTED, gson.toJson(list));
+                    Packet updatePacket = new Packet(States.LIST_UPDATE_REQUESTED_MAIN, gson.toJson(list));
                     updatePacket.setExtraInfo(itemMap);
-                    sendToServer(targetServer, gson.toJson(updatePacket));
+                    sendToServer(targetServer, updatePacket);
                 }
             }
         } catch (IOException e) {
@@ -205,11 +262,8 @@ public class DBShard {
         boolean listExists = false;
         for (ShoppingList existingList : existingLists) {
             if (existingList.getListId().equals(updatedList.getListId())) {
-
                 conflicts = merge(existingList, updatedList,extraInfo); // new way of dealing with existing lists implementing CRDT merge function
-
                 updatedList = withoutDeleted(existingList);
-
                 listExists = true;
                 break;
             }
@@ -228,6 +282,35 @@ public class DBShard {
             String list = gson.toJson(updatedList);
             Packet packet = new Packet(States.LIST_UPDATE_COMPLETED, list );
             packet.setExtraInfo(conflicts);
+            return packet;
+        }
+    }
+
+    private Packet updateShoppingListOnServer(ShoppingList updatedList,Map<String,Integer> extraInfo) throws IOException {
+        List<ShoppingList> existingLists = loadShoppingLists();
+        // Add or update the incoming list in the collection of existing lists
+        boolean listExists = false;
+        for (ShoppingList existingList : existingLists) {
+            if (existingList.getListId().equals(updatedList.getListId())) {
+                merge(existingList, updatedList,extraInfo); // new way of dealing with existing lists implementing CRDT merge function
+                listExists = true;
+                break;
+            }
+        }
+
+        // list does not exist in server
+        if (!listExists) {
+            //add it into the server
+            existingLists.add(updatedList);
+
+        }
+
+        if(!saveUpdatedListsToFile(existingLists)){
+            return new Packet(States.LIST_UPDATE_FAILED, "Update failed, Could not save file on server");
+        }else{
+            String list = gson.toJson(updatedList);
+            Packet packet = new Packet(States.LIST_UPDATE_COMPLETED, list);
+            packet.setExtraInfo(extraInfo);
             return packet;
         }
     }
@@ -269,7 +352,7 @@ public class DBShard {
         }
     }
 
-    private boolean saveUpdatedListsToFile(List<ShoppingList> lists) throws IOException {
+    private boolean saveUpdatedListsToFile(List<ShoppingList> lists) {
         try (Writer writer = new FileWriter(shardFilePath)) {
             System.out.println("Saving updated shopping lists to file: " + shardFilePath);
             gson.toJson(lists, writer);
@@ -301,7 +384,6 @@ public class DBShard {
                             // Replace with the last change
                             existingList.getItemList().put(itemName, incomingItem); // otherwise replace the existing item on the list
                         } else {
-                            // Warn user
                             conflicts.put(incomingItem.getItemName(),incomingItem.getQuantity());
                         }
                     }
@@ -315,7 +397,7 @@ public class DBShard {
                 }
             }
         }
-        System.out.println("[LOG] Num Conflicts found: "+conflicts.size());
+        //System.out.println("[LOG] Num Conflicts found: "+conflicts.size());
         return conflicts;
     }
 }
