@@ -51,18 +51,7 @@ public class DBShard {
         ZFrame contentFrame = msg.pop();
 
         String requestString = new String(contentFrame.getData(), ZMQ.CHARSET);
-
-        if ("ping".equals(requestString)) {
-            ZMsg responseMsg = new ZMsg();
-            responseMsg.add(identityFrame);
-            responseMsg.addString("pong");
-            System.out.println("connected to server");
-            responseMsg.send(socket);
-            return;
-        }
-
         Packet requestPacket = gson.fromJson(requestString, Packet.class);
-
 
         Packet responsePacket;
         try {
@@ -116,6 +105,12 @@ public class DBShard {
                     responsePacket = new Packet(States.HASH_RING_UPDATE_ACK, "Hash ring updated successfully");
 
                     break;
+                case PING:
+                    System.out.println("[LOG] Received ping request");
+                    responsePacket = new Packet(States.PONG, "Pong");
+                    break;
+                case PONG:
+                    return;
 
                 default:
                     responsePacket = new Packet(States.LIST_UPDATE_FAILED, "Invalid request state");
@@ -146,31 +141,38 @@ public class DBShard {
         Map<Integer, String> entry = hashRing.getServer(updatedList.getListId());
         int currentHash = entry.keySet().iterator().next();
 
+        Set<String> forwardedServers = new HashSet<>();
         Set<String> triedServers = new HashSet<>();
-        int numServersToForward = NUM_UNIQUE_SERVERS_BACKUP - 1;
+        int numServersToForward = NUM_UNIQUE_SERVERS_BACKUP - 1; // Since main server is included
         int i = 0;
 
-        while (triedServers.size() < numServersToForward && i < hashRing.getRing().size()) {
-            Map<Integer, String> nextServerInfo = hashRing.getNextNthServer(currentHash, i++);
+        while (forwardedServers.size() < numServersToForward) {
+            Map<Integer, String> nextServerInfo = hashRing.getNextNthServer(currentHash, ++i);
             String nextServerAddress = nextServerInfo.values().iterator().next();
 
-            System.out.println("[LOG] tried servers: " + triedServers);
-            if (nextServerAddress == null || nextServerAddress.equals("tcp://localhost:" + port) || !triedServers.add(nextServerAddress)) {
-                continue;  // Skip if null, current server, or already tried
+            if (nextServerAddress == null || nextServerAddress.equals("tcp://localhost:" + port) || forwardedServers.contains(nextServerAddress) || !triedServers.add(nextServerAddress)) {
+                continue;
             }
 
             Packet forwardResponsePacket = sendToServer(nextServerAddress, requestPacket);
             if (forwardResponsePacket != null && forwardResponsePacket.getState() == States.LIST_UPDATE_COMPLETED) {
+                // Merge the list from the next server with the list from this server
                 ShoppingList responseList = gson.fromJson(forwardResponsePacket.getMessageBody(), ShoppingList.class);
-                updateShoppingListOnServer(responseList);
-            } else {
+                Packet finalPacket = updateShoppingListOnServer(responseList);
+                gson.fromJson(finalPacket.getMessageBody(), ShoppingList.class).displayShoppingList();
+                System.out.println("[LOG] final merged list above");
+                forwardedServers.add(nextServerAddress);
+            }
+            else {
                 System.out.println("[LOG] Failed to forward request to server: " + nextServerAddress);
             }
         }
 
+        // Finally, merge the current list with the list from the user update
         System.out.println("[LOG] Merging lists");
         return updateShoppingList(updatedList);
     }
+
 
     private void updateHashRing(String hashRingData) {
         this.hashRing = gson.fromJson(hashRingData, HashRing.class);

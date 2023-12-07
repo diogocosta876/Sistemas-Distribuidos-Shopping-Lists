@@ -96,11 +96,18 @@ public class RunRouterServer {
 
             try (ZMQ.Socket dbSocket = context.createSocket(SocketType.DEALER)) {
                 dbSocket.connect(serverIP);
-                dbSocket.send(requestString.getBytes(ZMQ.CHARSET), 0);
-
                 ZMQ.Poller poller = context.createPoller(1);
                 poller.register(dbSocket, ZMQ.Poller.POLLIN);
-                boolean hasReply = poller.poll(2000) > 0; // 2000 milliseconds timeout
+
+                //ping
+                System.out.println("[LOG] Sending ping to DB server: " + serverIP);
+                dbSocket.send(gson.toJson(new Packet(States.PING, "ping")), 0);
+                if (poller.poll(200) <= 0){
+                    serverInfo = hashRing.getNextNthServer(hash, 1);
+                    continue;
+                }
+                dbSocket.send(requestString.getBytes(ZMQ.CHARSET), 0);
+                boolean hasReply = poller.poll(3000) > 0; // 2000 milliseconds timeout
 
                 if (hasReply) {
                     String responseString = dbSocket.recvStr();
@@ -150,7 +157,7 @@ public class RunRouterServer {
     private boolean tryConnect(String address) {
         try (ZMQ.Socket testSocket = context.createSocket(SocketType.DEALER)) {
             testSocket.connect(address);
-            testSocket.send("ping");
+            testSocket.send(gson.toJson(new Packet(States.PING, "ping")));
 
             // Wait for a response with a timeout
             ZMQ.Poller poller = context.createPoller(1);
@@ -159,7 +166,7 @@ public class RunRouterServer {
 
             if (hasReply) {
                 String reply = testSocket.recvStr();
-                return "pong".equals(reply);
+                return gson.fromJson(reply, Packet.class).getState().equals(States.PONG);
             } else {
                 return false;
             }
