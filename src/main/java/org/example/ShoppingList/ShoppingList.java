@@ -98,6 +98,7 @@ public class ShoppingList implements Serializable {
                 }
 
             }
+            System.out.println("\n");
 
         }
     }

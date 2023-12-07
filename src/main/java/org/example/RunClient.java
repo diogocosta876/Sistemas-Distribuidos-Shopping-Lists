@@ -167,8 +167,7 @@ public class RunClient {
                     synchronizeShoppingList(selectedList);
                     fillCurrentItems();
                     if(selectedList.getState()== org.example.ShoppingList.States.UPDATED){
-                        System.out.println("Item changed:");
-                        System.out.println(UpdatedItemsList);
+
                         UpdatedItemsList.clear();//clearing local updates tracker
                     }
                 }
