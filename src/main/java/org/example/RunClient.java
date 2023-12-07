@@ -195,7 +195,7 @@ public class RunClient {
     private void updateItemInSelectedList(){
         System.out.println("Name of the item to update: ");
         String itemName = scanner.nextLine();
-        if(selectedList.getItemList().containsKey(itemName)){
+        if(currentItems.contains(itemName)){
             System.out.println("Quantity: ");
             int quantity = scanner.nextInt();
             if(selectedList.getItemList().get(itemName).getQuantity() == quantity){

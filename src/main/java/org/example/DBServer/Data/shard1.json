@@ -35,8 +35,8 @@
     "itemList": {
       "pao": {
         "itemName": "pao",
-        "quantity": 1,
-        "timestamp": 0,
+        "quantity": 0,
+        "timestamp": 3,
         "userId": "af0b9e57-f694-461f-b9d2-f70568084a5d"
       },
       "panela": {
