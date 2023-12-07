@@ -102,8 +102,9 @@ public class RunRouterServer {
                 // Wait for the pong response
                 ZMQ.Poller poller = context.createPoller(1);
                 poller.register(dbSocket, ZMQ.Poller.POLLIN);
-                if (!(poller.poll(300) > 0)) {
-                    System.out.println("[LOG] No response received from DB server: " + serverIP);
+
+                if (!(poller.poll(300) > 0)) { // 3000 milliseconds timeout
+                    System.out.println("[LOG] No response received from DB server: " + serverIP + ". Attempting to connect to next server.");
                     serverInfo = hashRing.getNextNthServer(entry.getKey(), 1);
                     attempt++;
                     continue;
