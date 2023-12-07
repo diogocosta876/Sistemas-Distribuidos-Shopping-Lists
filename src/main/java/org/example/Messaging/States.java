@@ -22,5 +22,5 @@ public enum States {
     LIST_UPDATE_REQUESTED_MAIN,
     RETRIEVE_LIST_REQUESTED_MAIN,
     PING,
-    PONG,
+    PONG, NULL,
 }

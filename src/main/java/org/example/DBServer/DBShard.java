@@ -21,7 +21,7 @@ public class DBShard {
     private final ZMQ.Socket socket;
     private HashRing hashRing;
 
-    private static final int NUM_UNIQUE_SERVERS_BACKUP = 2;
+    private static final int NUM_UNIQUE_SERVERS_BACKUP = 3;
 
 
     public DBShard(String shardFilePath, int port) {
@@ -110,8 +110,8 @@ public class DBShard {
                     responsePacket = new Packet(States.PONG, "Pong");
                     break;
                 case PONG:
-                    return;
-
+                    responsePacket = new Packet(States.NULL, "");
+                    break;
                 default:
                     responsePacket = new Packet(States.LIST_UPDATE_FAILED, "Invalid request state");
             }
@@ -159,14 +159,13 @@ public class DBShard {
                 // Merge the list from the next server with the list from this server
                 ShoppingList responseList = gson.fromJson(forwardResponsePacket.getMessageBody(), ShoppingList.class);
                 Packet finalPacket = updateShoppingListOnServer(responseList);
-                gson.fromJson(finalPacket.getMessageBody(), ShoppingList.class).displayShoppingList();
-                System.out.println("[LOG] final merged list above");
                 forwardedServers.add(nextServerAddress);
             }
             else {
                 System.out.println("[LOG] Failed to forward request to server: " + nextServerAddress);
             }
         }
+        System.out.println("[LOG] Forwarded requests to servers: " + forwardedServers);
 
         // Finally, merge the current list with the list from the user update
         System.out.println("[LOG] Merging lists");
@@ -388,7 +387,6 @@ public class DBShard {
                     List1.getItemList().put(itemNameItemFrom2, ItemFrom2);
                 }
         }
-        System.out.println("[LOG] Merging lists");
         return List1;
     }
 
