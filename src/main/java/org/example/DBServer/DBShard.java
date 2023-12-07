@@ -82,7 +82,7 @@ public class DBShard {
                 case LIST_UPDATE_REQUESTED:
                     System.out.println("[LOG] Received write request");
                     incomingList = gson.fromJson(requestPacket.getMessageBody(), ShoppingList.class);
-                    responsePacket = updateShoppingListOnServer(incomingList,requestPacket.getExtraInfo());
+                    responsePacket = updateShoppingListOnServer(incomingList);
                     System.out.println("[LOG] Sent Response " + requestPacket.getState());
                     break;
 
@@ -92,13 +92,7 @@ public class DBShard {
                     //LOAD LIST
                     ShoppingList list = loadShoppingListWithId(listId);
                     requestPacket = new Packet(States.LIST_UPDATE_REQUESTED, gson.toJson(list, ShoppingList.class));
-                    Map<String, Integer> itemMap = new HashMap<>();
                     assert list != null;
-                    for (Map.Entry<String, CRDTItem> entry : list.getItemList().entrySet()) {
-                        itemMap.put(entry.getKey(), 0);
-                    }
-                    requestPacket.setExtraInfo(itemMap);
-
                     responsePacket = handleMainListUpdateRequest(requestPacket);
                     ShoppingList fetchedList = gson.fromJson(responsePacket.getMessageBody(), ShoppingList.class);
                     responsePacket = new Packet(States.RETRIEVE_LIST_COMPLETED, gson.toJson(fetchedList));
@@ -176,7 +170,7 @@ public class DBShard {
                     extraInfo.put(entryitem.getKey(), 0);
                 }
                 ShoppingList responseList = gson.fromJson(forwardResponsePacket.getMessageBody(), ShoppingList.class);
-                Packet finalPacket = updateShoppingListOnServer(responseList, extraInfo);
+                Packet finalPacket = updateShoppingListOnServer(responseList);
                 gson.fromJson(finalPacket.getMessageBody(), ShoppingList.class).displayShoppingList();
                 System.out.println("[LOG] final merged list above");
                 forwardedServers.add(nextServerAddress);
@@ -188,7 +182,7 @@ public class DBShard {
 
         // Finally, merge the current list with the list from the user update
         System.out.println("[LOG] Merging lists");
-        return updateShoppingList(updatedList, requestPacket.getExtraInfo());
+        return updateShoppingList(updatedList);
     }
 
     private void updateHashRing(String hashRingData) {
@@ -242,11 +236,7 @@ public class DBShard {
 
                 System.out.println("[LOG] Redistributing list " + list.getListId() + " to server " + targetServer);
                 Packet updatePacket = new Packet(States.LIST_UPDATE_REQUESTED_MAIN, gson.toJson(list));
-                Map<String, Integer> itemMap = new HashMap<>();
-                for (Map.Entry<String, CRDTItem> entry : list.getItemList().entrySet()) {
-                    itemMap.put(entry.getKey(), 0);
-                }
-                updatePacket.setExtraInfo(itemMap);
+
                 sendToServer(targetServer, updatePacket);
                 removeShoppingList(list.getListId().toString());
             }
@@ -295,16 +285,14 @@ public class DBShard {
         }
         return list;
     }
-    private Packet updateShoppingList(ShoppingList updatedList,Map<String,Integer> extraInfo) throws IOException {
-
-        Map<String,Integer> conflicts = new HashMap<>();
+    private Packet updateShoppingList(ShoppingList updatedList) throws IOException {
 
         List<ShoppingList> existingLists = loadShoppingLists();
         // Add or update the incoming list in the collection of existing lists
         boolean listExists = false;
         for (ShoppingList existingList : existingLists) {
             if (existingList.getListId().equals(updatedList.getListId())) {
-                conflicts = merge(existingList, updatedList,extraInfo); // new way of dealing with existing lists implementing CRDT merge function
+                updatedList= merge(existingList, updatedList); // new way of dealing with existing lists implementing CRDT merge function
                 updatedList = withoutDeleted(existingList);
                 listExists = true;
                 break;
@@ -323,18 +311,17 @@ public class DBShard {
         }else{
             String list = gson.toJson(updatedList);
             Packet packet = new Packet(States.LIST_UPDATE_COMPLETED, list );
-            packet.setExtraInfo(conflicts);
             return packet;
         }
     }
 
-    private Packet updateShoppingListOnServer(ShoppingList updatedList,Map<String,Integer> extraInfo) throws IOException {
+    private Packet updateShoppingListOnServer(ShoppingList updatedList) throws IOException {
         List<ShoppingList> existingLists = loadShoppingLists();
         // Add or update the incoming list in the collection of existing lists
         boolean listExists = false;
         for (ShoppingList existingList : existingLists) {
             if (existingList.getListId().equals(updatedList.getListId())) {
-                merge(existingList, updatedList,extraInfo); // new way of dealing with existing lists implementing CRDT merge function
+                updatedList = merge(existingList, updatedList); // new way of dealing with existing lists implementing CRDT merge function
                 listExists = true;
                 break;
             }
@@ -353,7 +340,6 @@ public class DBShard {
             Packet packet = new Packet(States.LIST_UPDATE_COMPLETED, list);
             ShoppingList list1 = gson.fromJson(packet.getMessageBody(), ShoppingList.class);
             System.out.println("[LOG] Updated list above ");
-            packet.setExtraInfo(extraInfo);
             return packet;
         }
     }
@@ -407,48 +393,37 @@ public class DBShard {
         }
     }
 
-    public Map<String,Integer> merge(ShoppingList existingList, ShoppingList incomingList,Map<String,Integer> itemsUpdated) {
+    public ShoppingList merge(ShoppingList List1, ShoppingList List2) {
         System.out.println("[LOG] Merging lists");
-        incomingList.displayShoppingList();
+        List1.displayShoppingList();
         System.out.println("[LOG] Incoming list above ");
-        existingList.displayShoppingList();
+        List2.displayShoppingList();
         System.out.println("[LOG] Existing list above ");
         Map<String,Integer> conflicts = new HashMap<>();
-        for (Map.Entry<String, CRDTItem> entry : incomingList.getItemList().entrySet()) {
+        for (Map.Entry<String, CRDTItem> entry : List2.getItemList().entrySet()) {
             System.out.println("[LOG] Incoming item: "+entry.getKey());
-            String itemName = entry.getKey();
-            CRDTItem incomingItem = entry.getValue();
-            if(itemsUpdated.containsKey(itemName)){
+            String itemNameItemFrom2 = entry.getKey();
+            CRDTItem ItemFrom2 = entry.getValue();
+
                 // Check if the item exists in the current list
-                if (existingList.getItemList().containsKey(itemName)) {
-                    CRDTItem currentItem = existingList.getItemList().get(itemName);
-                    if(currentItem.getQuantity() == 0){ // means the item was deleted my an user and it is being pushed again so we need to add it and set the timestamp to 0 on the server
-                        existingList.getItemList().put(itemName,incomingItem);
-                    }else{
-                        // Compare timestamps to determine the newer item in case of tie using user id
-                        if (incomingItem.getTimestamp() > currentItem.getTimestamp()
-                                || ((incomingItem.getTimestamp() == currentItem.getTimestamp())
-                                && (incomingItem.getUserId().compareTo(currentItem.getUserId()) > 0))) {
-                            // Replace with the last change
-                            existingList.getItemList().put(itemName, incomingItem); // otherwise replace the existing item on the list
-                        } else {
-                            conflicts.put(incomingItem.getItemName(),incomingItem.getQuantity());
-                        }
+                if (List1.getItemList().containsKey(itemNameItemFrom2)) {
+                    CRDTItem ItemFrom1 = List1.getItemList().get(itemNameItemFrom2);
+                    // Compare timestamps to determine the newer item in case of tie using user id
+                    if (ItemFrom2.getTimestamp() > ItemFrom1.getTimestamp()
+                            || ((ItemFrom2.getTimestamp() == ItemFrom1.getTimestamp())
+                            && (ItemFrom2.getUserId().compareTo(ItemFrom1.getUserId()) > 0))) {
+                        // Replace with the last change
+                        List1.getItemList().put(itemNameItemFrom2, ItemFrom2); // otherwise replace the existing item on the list
                     }
                 } else {
-                    incomingItem.setTimestamp(0);// if an item was deleted my other user and is again pushed it should have timestamp 0 not 1
-                    existingList.getItemList().put(itemName, incomingItem);
+
+                    List1.getItemList().put(itemNameItemFrom2, ItemFrom2);
                 }
-            }else{
-                if(existingList.getItemList().get(incomingItem.getItemName()).getQuantity() == 0){
-                    conflicts.put(incomingItem.getItemName(),incomingItem.getQuantity());//if we catch this conflict is a special case and the show function on the client should behave differently
-                }
-            }
+
         }
-        existingList.displayShoppingList();
+        List1.displayShoppingList();
         System.out.println("[LOG] final list: ");
-        //System.out.println("[LOG] Num Conflicts found: "+conflicts.size());
-        return conflicts;
+        return List1;
     }
 
     public boolean removeShoppingList(String listId) {

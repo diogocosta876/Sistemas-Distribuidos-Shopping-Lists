@@ -102,34 +102,6 @@ public class ShoppingList implements Serializable {
         }
     }
 
-    public void displayShoppingListWithConflicts(Map<String, Integer> newConflicts) {
-        System.out.println("\nShopping List (" + listId + ")");
 
-        System.out.println("Items:");
-        int i = 1;
-        for (Map.Entry<String, CRDTItem> entry : itemList.entrySet()) {
-            CRDTItem item = entry.getValue();
-
-            if(newConflicts.containsKey(item.getItemName())){// if item has quantity 0 it should not be displayed to the client, means the client deleted it and it has not yet synchronized with the serverc
-                System.out.println(i+"."+"  - " + item.getItemName() +
-                        " | Quantity chosen: " + item.getQuantity() +
-                        " | Timestamp: " + item.getTimestamp() +
-                        " | Quantity you wanted: " + newConflicts.get(item.getItemName()));
-                newConflicts.remove(item.getItemName());
-            } else {
-                System.out.println(i+"."+"  - " + item.getItemName() +
-                        " | Quantity: " + item.getQuantity() +
-                        " | Timestamp: " + item.getTimestamp());
-            }
-
-            i++;
-        }
-        for (Map.Entry<String, Integer> entry : newConflicts.entrySet()) {
-            System.out.println( " - " + entry.getKey() +
-                    " was removed from the list, but you wanted quantity " + entry.getValue());
-        }
-
-        System.out.println("This list had conflicts, please review them.");
-    }
 
 }

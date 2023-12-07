@@ -15,21 +15,16 @@ import org.zeromq.ZContext;
 import java.io.IOException;
 import java.util.*;
 
-
-//TODO change display to not display items with CRDT quant = 0
-//TODO when updating list with remote change selected list
-//TODO implement timeStamps
-//TODO fix item only using time one time
-
 public class RunClient {
 
     private User user;
     private ShoppingListManager listManager;
 
     List<String> UpdatedItemsList = new ArrayList<>();
+
+    List<String> currentItems = new ArrayList<>();
     private ShoppingList selectedList;
 
-    private Map<String,Integer> newConflicts = new HashMap<>();
     private final Scanner scanner;
     private boolean online;
     private final Gson gson = new Gson();
@@ -97,12 +92,7 @@ public class RunClient {
         while (true) {
             if(selectedList != null){
                 System.out.println("Selected List: "+this.selectedList.getListName());
-                if (newConflicts.isEmpty()) {
-                    this.selectedList.displayShoppingList();
-                } else {
-                    this.selectedList.displayShoppingListWithConflicts(newConflicts);
-                    this.newConflicts.clear();
-                }
+                this.selectedList.displayShoppingList();
             }
             System.out.println("1. Create a new shopping list");
             System.out.println("2. Select a shopping list");
@@ -175,6 +165,7 @@ public class RunClient {
                 if(choice == 1 || choice == 3 || choice == 4 || choice == 5){ //selected list changed so try to update list with server
                     selectedList.setState(org.example.ShoppingList.States.LOCAL_CHANGES);
                     synchronizeShoppingList(selectedList);
+                    fillCurrentItems();
                     if(selectedList.getState()== org.example.ShoppingList.States.UPDATED){
                         System.out.println("Item changed:");
                         System.out.println(UpdatedItemsList);
@@ -195,6 +186,7 @@ public class RunClient {
         if (choice > 0 && choice <= listManager.getShoppingLists().size()) {
             selectedList = listManager.getShoppingLists().get(choice - 1);
             UpdatedItemsList.clear();// clearing track of current items because other list was selected
+            fillCurrentItems();
         } else if (choice == 0) {
             System.out.println("Canceled selection.");
         } else {
@@ -221,6 +213,15 @@ public class RunClient {
         }else{
             System.out.println("No item found with that name");
             return;
+        }
+    }
+
+    private void fillCurrentItems(){
+        currentItems.clear();//clearing current items for next fill
+        for(Map.Entry<String,CRDTItem> items : selectedList.getItemList().entrySet()){
+            if(items.getValue().getQuantity()!= 0){
+                currentItems.add(items.getKey());
+            }
         }
     }
 
@@ -255,16 +256,11 @@ public class RunClient {
         System.out.print("Enter the number of the item to delete (0 to cancel): ");
         int choice = scanner.nextInt();
         scanner.nextLine();
-
-        if (choice > 0 && choice <= selectedList.getItemList().size()) {
-            if(selectedList.getItemList().get(selectedList.getItemList().keySet().toArray()[choice-1].toString()).getQuantity()==0){
-                System.out.println("Item already deleted from the selected list. Waiting Sync");
-            }else{
-                String itemNameToDelete = selectedList.getItemList().keySet().toArray()[choice - 1].toString();
-                selectedList.removeItem(itemNameToDelete);
-                UpdatedItemsList.add(itemNameToDelete);
-                System.out.println("Item deleted from the selected list.");
-            }
+        System.out.println("current items:"+currentItems);
+        if (choice > 0 && choice <= currentItems.size()) {
+            selectedList.removeItem(currentItems.get(choice-1));
+            UpdatedItemsList.add(currentItems.get(choice-1));
+            System.out.println("Item deleted from the selected list.");
         } else if (choice == 0) {
             System.out.println("Canceled deletion.");
         } else {
@@ -279,15 +275,9 @@ public class RunClient {
             System.out.println("No selected list to update.");
             return;
         }
-        Map<String,Integer> itemsUpdated = new HashMap<>();
-
-        for(String item : UpdatedItemsList){
-            itemsUpdated.put(item,0);
-        }
 
         String listJson = gson.toJson(list);
         Packet request = new Packet(States.LIST_UPDATE_REQUESTED_MAIN, listJson);
-        request.setExtraInfo(itemsUpdated);
         sendRequest(request);
         Packet reply = receiveReply();
 
@@ -297,8 +287,7 @@ public class RunClient {
 
             selectedList.setState(org.example.ShoppingList.States.UPDATED);
             listManager.updateList(selectedList);
-
-            newConflicts = reply.getExtraInfo();
+            fillCurrentItems();
 
         } else if (reply.getState() == States.LIST_UPDATE_FAILED) {
             System.out.println("[LOG] Failed to update list on the server.");
@@ -343,6 +332,7 @@ public class RunClient {
             importedList.setListName(importedList.getListName()+" / Imported");
             listManager.addShoppingList(importedList);
             selectedList = importedList;
+            fillCurrentItems();
         }else{
             System.out.println("Unexpected response from server"); //TODO add messaging for client for him to know what happened
         }
