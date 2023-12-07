@@ -11,18 +11,6 @@
       },
       "item2": {
         "itemName": "item2",
-        "quantity": 0,
-        "timestamp": 1,
-        "userId": "0594fe65-692c-4684-8bb2-53c47323a2f7"
-      },
-      "item3": {
-        "itemName": "item3",
-        "quantity": 1,
-        "timestamp": 0,
-        "userId": "0594fe65-692c-4684-8bb2-53c47323a2f7"
-      },
-      "cebola1": {
-        "itemName": "cebola1",
         "quantity": 1,
         "timestamp": 0,
         "userId": "0594fe65-692c-4684-8bb2-53c47323a2f7"

@@ -71,6 +71,7 @@ public class RunRouterServer {
             case LIST_UPDATE_REQUESTED_MAIN:
             case LIST_DELETE_REQUESTED:
             case RETRIEVE_LIST_REQUESTED:
+            case RETRIEVE_LIST_REQUESTED_MAIN:
                 return forwardRequestToDBServer(requestPacket);
 
             default:
@@ -121,7 +122,7 @@ public class RunRouterServer {
     }
 
     private String getListIDFromPacket(Packet requestPacket) {
-        if (requestPacket.getState().equals(States.RETRIEVE_LIST_REQUESTED)) {
+        if (requestPacket.getState().equals(States.RETRIEVE_LIST_REQUESTED_MAIN)) {
             System.out.println("[LOG] Requested list ID: " + requestPacket.getMessageBody());
             return requestPacket.getMessageBody();
         } else {
@@ -177,7 +178,7 @@ public class RunRouterServer {
 
         for (String address : uniqueAddresses) {
             try (ZMQ.Socket socket = context.createSocket(SocketType.DEALER)) {
-                socket.setSendTimeOut(1000);
+                socket.setSendTimeOut(300);
                 socket.connect(address);
 
                 Packet hashRingUpdatePacket = new Packet(States.HASH_RING_UPDATE, hashRingData);
@@ -195,7 +196,6 @@ public class RunRouterServer {
                 if (events > 0) {
                     // We have a reply
                     String reply = socket.recvStr();
-                    System.out.println("[LOG] Received hash ring update acknowledgment from server " + address);
                 }
 
                 poller.close();

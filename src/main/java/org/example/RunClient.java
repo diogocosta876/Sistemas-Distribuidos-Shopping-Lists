@@ -330,7 +330,7 @@ public class RunClient {
         System.out.println("Insert the shopping list Id to import: ");
         String listId = scanner.nextLine();
 
-        sendRequest(new Packet(States.RETRIEVE_LIST_REQUESTED, listId));
+        sendRequest(new Packet(States.RETRIEVE_LIST_REQUESTED_MAIN, listId));
         Packet reply = receiveReply();
 
         if(reply.getState().equals(States.RETRIEVE_LIST_COMPLETED)){
