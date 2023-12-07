@@ -36,11 +36,7 @@ public class DBShard {
         System.out.println("DBShard Server Running on Port: " + port);
 
         // Ping the server for hash ring info at startup
-        boolean hashRingUpdated = pingServerForHashRing();
-        if (hashRingUpdated) {
-            System.out.println("[LOG] Hash ring updated: \n" + hashRing.displayAllServers());
-            redistributeListsOnRingUpdate();
-        }
+        pingServerForHashRing();
 
         while (!Thread.currentThread().isInterrupted()) {
             ZMsg msg = ZMsg.recvMsg(socket);
@@ -150,33 +146,28 @@ public class DBShard {
         Map<Integer, String> entry = hashRing.getServer(updatedList.getListId());
         int currentHash = entry.keySet().iterator().next();
 
-        Set<String> forwardedServers = new HashSet<>();
-        int numServersToForward = NUM_UNIQUE_SERVERS_BACKUP - 1; // Since main server is included
+        Set<String> triedServers = new HashSet<>();
+        int numServersToForward = NUM_UNIQUE_SERVERS_BACKUP - 1;
         int i = 0;
 
-        while (forwardedServers.size() < numServersToForward) {
-            Map<Integer, String> nextServerInfo = hashRing.getNextNthServer(currentHash, ++i);
+        while (triedServers.size() < numServersToForward && i < hashRing.getRing().size()) {
+            Map<Integer, String> nextServerInfo = hashRing.getNextNthServer(currentHash, i++);
             String nextServerAddress = nextServerInfo.values().iterator().next();
 
-            if (nextServerAddress == null || nextServerAddress.equals("tcp://localhost:" + port) || forwardedServers.contains(nextServerAddress)) {
-                continue;
+            System.out.println("[LOG] tried servers: " + triedServers);
+            if (nextServerAddress == null || nextServerAddress.equals("tcp://localhost:" + port) || !triedServers.add(nextServerAddress)) {
+                continue;  // Skip if null, current server, or already tried
             }
 
             Packet forwardResponsePacket = sendToServer(nextServerAddress, requestPacket);
             if (forwardResponsePacket != null && forwardResponsePacket.getState() == States.LIST_UPDATE_COMPLETED) {
-                // Merge the list from the next server with the list from this server
                 ShoppingList responseList = gson.fromJson(forwardResponsePacket.getMessageBody(), ShoppingList.class);
-                Packet finalPacket = updateShoppingListOnServer(responseList);
-                gson.fromJson(finalPacket.getMessageBody(), ShoppingList.class).displayShoppingList();
-                System.out.println("[LOG] final merged list above");
-                forwardedServers.add(nextServerAddress);
-            }
-            else {
+                updateShoppingListOnServer(responseList);
+            } else {
                 System.out.println("[LOG] Failed to forward request to server: " + nextServerAddress);
             }
         }
 
-        // Finally, merge the current list with the list from the user update
         System.out.println("[LOG] Merging lists");
         return updateShoppingList(updatedList);
     }
@@ -324,10 +315,7 @@ public class DBShard {
             return new Packet(States.LIST_UPDATE_FAILED, "Update failed, Could not save file on server");
         }else{
             String list = gson.toJson(updatedList);
-            Packet packet = new Packet(States.LIST_UPDATE_COMPLETED, list);
-            ShoppingList list1 = gson.fromJson(packet.getMessageBody(), ShoppingList.class);
-            System.out.println("[LOG] Updated list above ");
-            return packet;
+            return new Packet(States.LIST_UPDATE_COMPLETED, list);
         }
     }
 
@@ -381,16 +369,9 @@ public class DBShard {
     }
 
     public ShoppingList merge(ShoppingList List1, ShoppingList List2) {
-        System.out.println("[LOG] Merging lists");
-        List1.displayShoppingList();
-        System.out.println("[LOG] Incoming list above ");
-        List2.displayShoppingList();
-        System.out.println("[LOG] Existing list above ");
         for (Map.Entry<String, CRDTItem> entry : List2.getItemList().entrySet()) {
-            System.out.println("[LOG] Incoming item: "+entry.getKey());
             String itemNameItemFrom2 = entry.getKey();
             CRDTItem ItemFrom2 = entry.getValue();
-
                 // Check if the item exists in the current list
                 if (List1.getItemList().containsKey(itemNameItemFrom2)) {
                     CRDTItem ItemFrom1 = List1.getItemList().get(itemNameItemFrom2);
@@ -402,13 +383,10 @@ public class DBShard {
                         List1.getItemList().put(itemNameItemFrom2, ItemFrom2); // otherwise replace the existing item on the list
                     }
                 } else {
-
                     List1.getItemList().put(itemNameItemFrom2, ItemFrom2);
                 }
-
         }
-        List1.displayShoppingList();
-        System.out.println("[LOG] final list: ");
+        System.out.println("[LOG] Merging lists");
         return List1;
     }
 
@@ -418,7 +396,6 @@ public class DBShard {
             Iterator<ShoppingList> iterator = existingLists.iterator();
 
             boolean listRemoved = false;
-
             while (iterator.hasNext()) {
                 ShoppingList list = iterator.next();
                 if (list.getListId().toString().equals(listId)) {
@@ -427,7 +404,6 @@ public class DBShard {
                     break;
                 }
             }
-
             if (listRemoved) {
                 if (saveUpdatedListsToFile(existingLists)) {
                     System.out.println("[LOG] Shopping list with ID " + listId + " removed successfully.");
