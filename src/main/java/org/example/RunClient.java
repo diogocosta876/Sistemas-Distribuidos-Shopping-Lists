@@ -228,15 +228,21 @@ public class RunClient {
         if (selectedList == null) {
             return;
         }
-
         System.out.print("Enter the item name: ");
         String itemName = scanner.nextLine();
         System.out.print("Enter the item quantity: ");
         int itemQuantity = scanner.nextInt();
         scanner.nextLine();
         if(selectedList.getItemList().containsKey(itemName)){
-            System.out.println("Item already exists");
-            return;
+            if(selectedList.getItemList().get(itemName).getQuantity() == 0){
+                selectedList.getItemList().get(itemName).setQuantity(itemQuantity);
+                if(!UpdatedItemsList.contains(itemName)){
+                    UpdatedItemsList.add(itemName);
+                    selectedList.getItemList().get(itemName).setTimestamp(selectedList.getItemList().get(itemName).getTimestamp()+1);
+                }
+            }else{
+                System.out.println("Item already exists");
+            }
         }else{
             CRDTItem item = new CRDTItem(itemName,itemQuantity,0,user.uuid);
             UpdatedItemsList.add(itemName);

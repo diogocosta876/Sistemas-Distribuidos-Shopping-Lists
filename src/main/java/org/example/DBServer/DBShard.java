@@ -165,10 +165,6 @@ public class DBShard {
             Packet forwardResponsePacket = sendToServer(nextServerAddress, requestPacket);
             if (forwardResponsePacket != null && forwardResponsePacket.getState() == States.LIST_UPDATE_COMPLETED) {
                 // Merge the list from the next server with the list from this server
-                Map<String, Integer> extraInfo = new HashMap<>();
-                for (Map.Entry<String, CRDTItem> entryitem : updatedList.getItemList().entrySet()) {
-                    extraInfo.put(entryitem.getKey(), 0);
-                }
                 ShoppingList responseList = gson.fromJson(forwardResponsePacket.getMessageBody(), ShoppingList.class);
                 Packet finalPacket = updateShoppingListOnServer(responseList);
                 gson.fromJson(finalPacket.getMessageBody(), ShoppingList.class).displayShoppingList();
@@ -276,15 +272,7 @@ public class DBShard {
 
 
 
-    private ShoppingList withoutDeleted(ShoppingList existing) {
-        ShoppingList list = new ShoppingList(existing.getListName(),existing.getListId());
-        for (Map.Entry<String, CRDTItem> entry : existing.getItemList().entrySet()) {
-            if (entry.getValue().getQuantity() != 0) {
-                list.addItem(entry.getValue());
-            }
-        }
-        return list;
-    }
+
     private Packet updateShoppingList(ShoppingList updatedList) throws IOException {
 
         List<ShoppingList> existingLists = loadShoppingLists();
@@ -293,7 +281,6 @@ public class DBShard {
         for (ShoppingList existingList : existingLists) {
             if (existingList.getListId().equals(updatedList.getListId())) {
                 updatedList= merge(existingList, updatedList); // new way of dealing with existing lists implementing CRDT merge function
-                updatedList = withoutDeleted(existingList);
                 listExists = true;
                 break;
             }
@@ -399,7 +386,6 @@ public class DBShard {
         System.out.println("[LOG] Incoming list above ");
         List2.displayShoppingList();
         System.out.println("[LOG] Existing list above ");
-        Map<String,Integer> conflicts = new HashMap<>();
         for (Map.Entry<String, CRDTItem> entry : List2.getItemList().entrySet()) {
             System.out.println("[LOG] Incoming item: "+entry.getKey());
             String itemNameItemFrom2 = entry.getKey();

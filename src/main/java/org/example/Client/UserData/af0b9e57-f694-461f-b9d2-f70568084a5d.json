@@ -5,15 +5,27 @@
       "listId": "0a3b882a-32d5-4976-b00f-ad4ca0c31225",
       "listName": "lista teste",
       "itemList": {
+        "item1": {
+          "itemName": "item1",
+          "quantity": 4,
+          "timestamp": 2,
+          "userId": "af0b9e57-f694-461f-b9d2-f70568084a5d"
+        },
         "item2": {
           "itemName": "item2",
           "quantity": 1,
           "timestamp": 0,
           "userId": "af0b9e57-f694-461f-b9d2-f70568084a5d"
         },
-        "item1": {
-          "itemName": "item1",
-          "quantity": 1,
+        "item3": {
+          "itemName": "item3",
+          "quantity": 0,
+          "timestamp": 1,
+          "userId": "af0b9e57-f694-461f-b9d2-f70568084a5d"
+        },
+        "item4": {
+          "itemName": "item4",
+          "quantity": 2,
           "timestamp": 0,
           "userId": "af0b9e57-f694-461f-b9d2-f70568084a5d"
         }

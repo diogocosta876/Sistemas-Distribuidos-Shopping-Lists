@@ -95,6 +95,11 @@ public class ShoppingList implements Serializable {
                             " | Quantity: " + item.getQuantity() +
                             " | Timestamp: " + item.getTimestamp());
                     i++;
+                }else{
+                    System.out.println(i+"."+"  - " + item.getItemName() +
+                            " | Quantity: " + item.getQuantity() +
+                            " | Timestamp: " + item.getTimestamp());
+                    i++;
                 }
 
             }
