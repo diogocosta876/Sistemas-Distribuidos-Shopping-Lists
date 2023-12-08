@@ -349,6 +349,10 @@ public class RunClient {
     }
 
     public void synchronizeShoppingLists() throws IOException {
+        if(listManager.getShoppingLists().isEmpty()){
+            System.out.println("You have no lists to sync.");
+            return;
+        }
         for(ShoppingList list : listManager.getShoppingLists()){
             synchronizeShoppingList(list);
         }
@@ -360,7 +364,16 @@ public class RunClient {
 
         sendRequest(new Packet(States.RETRIEVE_LIST_REQUESTED_MAIN, listId));
         Packet reply = receiveReply(5000);
-
+        if (reply == null) {
+            System.out.println("[LOG] Switching to backup server...");
+            switchToBackupServer();
+            sendRequest(new Packet(States.RETRIEVE_LIST_REQUESTED_MAIN, listId));
+            reply = receiveReply(5000);
+            if(reply == null){
+                System.out.println("Could not reach the server for import");
+                return;
+            }
+        }
         if(reply.getState().equals(States.RETRIEVE_LIST_COMPLETED)){
             System.out.println("[LOG] List imported successfully.");
             System.out.println("Changing selected list to the imported list..");
