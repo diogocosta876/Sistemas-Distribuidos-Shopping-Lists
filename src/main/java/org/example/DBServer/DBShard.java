@@ -21,7 +21,7 @@ public class DBShard {
     private final ZMQ.Socket socket;
     private HashRing hashRing;
 
-    private static final int NUM_UNIQUE_SERVERS_BACKUP = 2;
+    private static final int NUM_UNIQUE_SERVERS_BACKUP = 3;
 
 
     public DBShard(String shardFilePath, int port) {
@@ -39,7 +39,7 @@ public class DBShard {
         boolean hashRingUpdated = pingServerForHashRing();
         if (hashRingUpdated) {
             System.out.println("[LOG] Hash ring updated: \n" + hashRing.displayAllServers());
-            redistributeListsOnRingUpdate();
+            requestRedistributionOnStartup();
         }
 
         while (!Thread.currentThread().isInterrupted()) {
@@ -55,18 +55,7 @@ public class DBShard {
         ZFrame contentFrame = msg.pop();
 
         String requestString = new String(contentFrame.getData(), ZMQ.CHARSET);
-
-        if ("ping".equals(requestString)) {
-            ZMsg responseMsg = new ZMsg();
-            responseMsg.add(identityFrame);
-            responseMsg.addString("pong");
-            System.out.println("connected to server");
-            responseMsg.send(socket);
-            return;
-        }
-
         Packet requestPacket = gson.fromJson(requestString, Packet.class);
-
 
         Packet responsePacket;
         try {
@@ -118,9 +107,17 @@ public class DBShard {
                 case HASH_RING_UPDATE:
                     updateHashRing(requestPacket.getMessageBody());
                     responsePacket = new Packet(States.HASH_RING_UPDATE_ACK, "Hash ring updated successfully");
-
                     break;
-
+                case DB_REDISTRIBUTE:
+                    redistributeListsOnRingUpdate();
+                    return;
+                case PING:
+                    System.out.println("[LOG] Received ping request");
+                    responsePacket = new Packet(States.PONG, "Pong");
+                    break;
+                case PONG:
+                    responsePacket = new Packet(States.NULL, "");
+                    break;
                 default:
                     responsePacket = new Packet(States.LIST_UPDATE_FAILED, "Invalid request state");
             }
@@ -151,6 +148,7 @@ public class DBShard {
         int currentHash = entry.keySet().iterator().next();
 
         Set<String> forwardedServers = new HashSet<>();
+        Set<String> triedServers = new HashSet<>();
         int numServersToForward = NUM_UNIQUE_SERVERS_BACKUP - 1; // Since main server is included
         int i = 0;
 
@@ -158,7 +156,7 @@ public class DBShard {
             Map<Integer, String> nextServerInfo = hashRing.getNextNthServer(currentHash, ++i);
             String nextServerAddress = nextServerInfo.values().iterator().next();
 
-            if (nextServerAddress == null || nextServerAddress.equals("tcp://localhost:" + port) || forwardedServers.contains(nextServerAddress)) {
+            if (nextServerAddress == null || nextServerAddress.equals("tcp://localhost:" + port) || forwardedServers.contains(nextServerAddress) || !triedServers.add(nextServerAddress)) {
                 continue;
             }
 
@@ -167,19 +165,19 @@ public class DBShard {
                 // Merge the list from the next server with the list from this server
                 ShoppingList responseList = gson.fromJson(forwardResponsePacket.getMessageBody(), ShoppingList.class);
                 Packet finalPacket = updateShoppingListOnServer(responseList);
-                gson.fromJson(finalPacket.getMessageBody(), ShoppingList.class).displayShoppingList();
-                System.out.println("[LOG] final merged list above");
                 forwardedServers.add(nextServerAddress);
             }
             else {
                 System.out.println("[LOG] Failed to forward request to server: " + nextServerAddress);
             }
         }
+        System.out.println("[LOG] Forwarded requests to servers: " + forwardedServers);
 
         // Finally, merge the current list with the list from the user update
         System.out.println("[LOG] Merging lists");
         return updateShoppingList(updatedList);
     }
+
 
     private void updateHashRing(String hashRingData) {
         this.hashRing = gson.fromJson(hashRingData, HashRing.class);
@@ -238,6 +236,33 @@ public class DBShard {
             }
         } catch (IOException e) {
             System.out.println("Error while redistributing lists: " + e.getMessage());
+        }
+    }
+
+    private void requestRedistributionOnStartup() {
+        try {
+            Map<Integer, String> serverInfo = hashRing.getServer(""); // Use a generic key to get server info
+            Integer currentHash = serverInfo.keySet().iterator().next();
+
+            Set<String> targetServers = new HashSet<>();
+            int numServersChecked = 0;
+
+            while (targetServers.size() < 2 && numServersChecked < hashRing.getRing().size()) {
+                Map<Integer, String> nextServerInfo = hashRing.getNextNthServer(currentHash, numServersChecked++);
+                String nextServerAddress = nextServerInfo.values().iterator().next();
+
+                if (nextServerAddress != null && !nextServerAddress.equals("tcp://localhost:" + port) && targetServers.add(nextServerAddress)) {
+                    try (ZMQ.Socket forwardSocket = context.createSocket(SocketType.DEALER)) {
+                        forwardSocket.connect(nextServerAddress);
+                        Packet redistributePacket = new Packet(States.DB_REDISTRIBUTE, "");
+                        forwardSocket.send(gson.toJson(redistributePacket).getBytes(ZMQ.CHARSET), 0);
+                    } catch (Exception e) {
+                        System.out.println("Error sending redistribution request to server " + nextServerAddress + ": " + e.getMessage());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Error while requesting redistribution on startup: " + e.getMessage());
         }
     }
 
@@ -324,10 +349,7 @@ public class DBShard {
             return new Packet(States.LIST_UPDATE_FAILED, "Update failed, Could not save file on server");
         }else{
             String list = gson.toJson(updatedList);
-            Packet packet = new Packet(States.LIST_UPDATE_COMPLETED, list);
-            ShoppingList list1 = gson.fromJson(packet.getMessageBody(), ShoppingList.class);
-            System.out.println("[LOG] Updated list above ");
-            return packet;
+            return new Packet(States.LIST_UPDATE_COMPLETED, list);
         }
     }
 
@@ -381,16 +403,9 @@ public class DBShard {
     }
 
     public ShoppingList merge(ShoppingList List1, ShoppingList List2) {
-        System.out.println("[LOG] Merging lists");
-        List1.displayShoppingList();
-        System.out.println("[LOG] Incoming list above ");
-        List2.displayShoppingList();
-        System.out.println("[LOG] Existing list above ");
         for (Map.Entry<String, CRDTItem> entry : List2.getItemList().entrySet()) {
-            System.out.println("[LOG] Incoming item: "+entry.getKey());
             String itemNameItemFrom2 = entry.getKey();
             CRDTItem ItemFrom2 = entry.getValue();
-
                 // Check if the item exists in the current list
                 if (List1.getItemList().containsKey(itemNameItemFrom2)) {
                     CRDTItem ItemFrom1 = List1.getItemList().get(itemNameItemFrom2);
@@ -402,13 +417,9 @@ public class DBShard {
                         List1.getItemList().put(itemNameItemFrom2, ItemFrom2); // otherwise replace the existing item on the list
                     }
                 } else {
-
                     List1.getItemList().put(itemNameItemFrom2, ItemFrom2);
                 }
-
         }
-        List1.displayShoppingList();
-        System.out.println("[LOG] final list: ");
         return List1;
     }
 
@@ -418,7 +429,6 @@ public class DBShard {
             Iterator<ShoppingList> iterator = existingLists.iterator();
 
             boolean listRemoved = false;
-
             while (iterator.hasNext()) {
                 ShoppingList list = iterator.next();
                 if (list.getListId().toString().equals(listId)) {
@@ -427,7 +437,6 @@ public class DBShard {
                     break;
                 }
             }
-
             if (listRemoved) {
                 if (saveUpdatedListsToFile(existingLists)) {
                     System.out.println("[LOG] Shopping list with ID " + listId + " removed successfully.");

@@ -106,20 +106,33 @@ public class RunRouterServer {
 
         while (attempt < maxAttempts) {
             Map.Entry<Integer, String> entry = serverInfo.entrySet().iterator().next();
-            Integer hash = entry.getKey();
             String serverIP = entry.getValue();
             System.out.println("[LOG] Attempting to forward request to DB server: " + serverIP);
 
             try (ZMQ.Socket dbSocket = context.createSocket(SocketType.DEALER)) {
                 dbSocket.connect(serverIP);
-                dbSocket.send(requestString.getBytes(ZMQ.CHARSET), 0);
 
+                // Ping
+                dbSocket.send(gson.toJson(new Packet(States.PING, "ping")), 0);
+
+                // Wait for the pong response
                 ZMQ.Poller poller = context.createPoller(1);
                 poller.register(dbSocket, ZMQ.Poller.POLLIN);
-                boolean hasReply = poller.poll(2000) > 0; // 2000 milliseconds timeout
 
-                if (hasReply) {
-                    String responseString = dbSocket.recvStr();
+                if (!(poller.poll(300) > 0)) { // 3000 milliseconds timeout
+                    System.out.println("[LOG] No response received from DB server: " + serverIP + ". Attempting to connect to next server.");
+                    serverInfo = hashRing.getNextNthServer(entry.getKey(), 1);
+                    attempt++;
+                    continue;
+                }
+                String responseString = dbSocket.recvStr();
+
+                // Send actual request
+                dbSocket.send(requestString.getBytes(ZMQ.CHARSET), 0);
+
+                // Wait for the response to the actual request
+                if (poller.poll(3000) > 0) { // 3000 milliseconds timeout
+                    responseString = dbSocket.recvStr();
                     System.out.println("[LOG] Received response from DB server: " + responseString);
                     return gson.fromJson(responseString, Packet.class);
                 } else {
@@ -128,10 +141,6 @@ public class RunRouterServer {
             } catch (Exception e) {
                 System.out.println("Error connecting to or communicating with server " + serverIP + ": " + e.getMessage());
             }
-
-            // Get the next server in the ring
-            serverInfo = hashRing.getNextNthServer(hash, 1);
-            attempt++;
         }
 
         return new Packet(States.LIST_UPDATE_FAILED, "Unable to connect to any DB server");
@@ -166,7 +175,7 @@ public class RunRouterServer {
     private boolean tryConnect(String address) {
         try (ZMQ.Socket testSocket = context.createSocket(SocketType.DEALER)) {
             testSocket.connect(address);
-            testSocket.send("ping");
+            testSocket.send(gson.toJson(new Packet(States.PING, "ping")));
 
             // Wait for a response with a timeout
             ZMQ.Poller poller = context.createPoller(1);
@@ -175,7 +184,7 @@ public class RunRouterServer {
 
             if (hasReply) {
                 String reply = testSocket.recvStr();
-                return "pong".equals(reply);
+                return gson.fromJson(reply, Packet.class).getState().equals(States.PONG);
             } else {
                 return false;
             }

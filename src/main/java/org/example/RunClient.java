@@ -11,6 +11,7 @@ import org.jetbrains.annotations.NotNull;
 import org.zeromq.SocketType;
 import org.zeromq.ZMQ;
 import org.zeromq.ZContext;
+import org.zeromq.ZMQException;
 
 import java.io.IOException;
 import java.util.*;
@@ -31,7 +32,7 @@ public class RunClient {
 
     private final ZMQ.Socket socket;
     private final ZContext context;
-    private final ZMQ.Poller poller;
+    private ZMQ.Poller poller;
 
     private List<String> RouterAdresses;
 
@@ -288,12 +289,16 @@ public class RunClient {
             return;
         }
 
+        if(!confirmConnection()){//TODO fazer esta funcao dar DIOGO
+            System.out.println("Server unreachable");
+            return;
+        }
 
         String listJson = gson.toJson(list);
         Packet request = new Packet(States.LIST_UPDATE_REQUESTED_MAIN, listJson);
         sendRequest(request);
         Packet reply = receiveReply(5000);
-
+        System.out.println("Reply:" +reply);
         if (reply.getState() == States.LIST_UPDATE_COMPLETED) {
             System.out.println("[LOG] List updated successfully on the server.");
             selectedList = gson.fromJson(reply.getMessageBody(), ShoppingList.class);
@@ -353,8 +358,12 @@ public class RunClient {
 
     private boolean confirmConnection(){
         socket.connect(RouterAdresses.get(0));
+        this.poller = context.createPoller(1);
+        poller.register(socket, ZMQ.Poller.POLLIN);
         if(!attemptHandshake()){
             socket.connect(RouterAdresses.get(1));
+            this.poller = context.createPoller(1);
+            poller.register(socket, ZMQ.Poller.POLLIN);
             if(!attemptHandshake()){
                 return false;
             }
