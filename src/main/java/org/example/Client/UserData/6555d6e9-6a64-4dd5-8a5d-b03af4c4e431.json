@@ -1,0 +1,29 @@
+{
+  "uuid": "6555d6e9-6a64-4dd5-8a5d-b03af4c4e431",
+  "lists": [
+    {
+      "listId": "6f9ac113-5f9b-44d4-9947-80ec94acff82",
+      "listName": "pingo doce",
+      "itemList": {
+        "pao": {
+          "itemName": "pao",
+          "quantity": 1,
+          "timestamp": 0,
+          "userId": "d73f2ac9-ddc0-4e0d-9b9e-51c721483341"
+        },
+        "queijo": {
+          "itemName": "queijo",
+          "quantity": 1,
+          "timestamp": 0,
+          "userId": "d73f2ac9-ddc0-4e0d-9b9e-51c721483341"
+        },
+        "bananas": {
+          "itemName": "bananas",
+          "quantity": 0,
+          "timestamp": 1,
+          "userId": "6555d6e9-6a64-4dd5-8a5d-b03af4c4e431"
+        }
+      }
+    }
+  ]
+}

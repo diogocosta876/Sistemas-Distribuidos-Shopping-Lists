@@ -109,8 +109,8 @@ public class RunClient {
             System.out.println("5. Update item in the selected list");
             System.out.println("6. Delete current selected list");
             System.out.println("7. Import list");
-            System.out.println("8. Exit");
-            System.out.println("9. [TEMPORARY] Fetch all lists");
+            System.out.println("8. Sync all lists");
+            System.out.println("9. Exit");
             System.out.print("Enter your choice: ");
 
             int choice = scanner.nextInt();
@@ -156,16 +156,15 @@ public class RunClient {
                         importShoppingList();
                         break;
                     case 8:
-                        System.out.println("Goodbye!");
-                        return;
-                    case 9:
                         System.out.println("Synchronizing lists...");
-                        List<ShoppingList> lists = synchronizeShoppingLists();
-                        for (ShoppingList list : lists) {
+                        synchronizeShoppingLists();
+                        for (ShoppingList list : listManager.getShoppingLists()) {
                             list.displayShoppingList();
-
                         }
                         break;
+                    case 9:
+                        System.out.println("Goodbye!");
+                        return;
                     default:
                         System.out.println("Invalid choice. Please try again.");
                 }
@@ -184,7 +183,7 @@ public class RunClient {
         }
     }
 
-    private void selectShoppingList() {
+    private void selectShoppingList() throws IOException {
         this.listManager.displayShoppingLists();
         System.out.print("Enter the number of the list to select (0 to cancel): ");
         int choice = scanner.nextInt();
@@ -192,6 +191,7 @@ public class RunClient {
 
         if (choice > 0 && choice <= listManager.getShoppingLists().size()) {
             selectedList = listManager.getShoppingLists().get(choice - 1);
+            synchronizeShoppingList(selectedList);// updating list upon selecting
             UpdatedItemsList.clear();// clearing track of current items because other list was selected
             fillCurrentItems();
         } else if (choice == 0) {
@@ -348,22 +348,10 @@ public class RunClient {
         }
     }
 
-    public List<ShoppingList> synchronizeShoppingLists() throws IOException {
-        //for now this method just fetches the lists from the server
-        // TODO later it should compare the lists and update the server (CRDTS)
-        sendRequest(new Packet(States.RETRIEVE_LISTS_REQUESTED, null));
-        Packet reply = receiveReply(5000);
-
-        if (reply.getState() == States.RETRIEVE_LISTS_COMPLETED) {
-            System.out.println("[LOG] Lists retrieved successfully from the server.");
-            List<ShoppingList> lists = gson.fromJson(reply.getMessageBody(), List.class);
-
-            //this.listManager.setShoppingLists(lists);
-            return lists;
-        } else {
-            System.out.println("Unexpected response from server.");
+    public void synchronizeShoppingLists() throws IOException {
+        for(ShoppingList list : listManager.getShoppingLists()){
+            synchronizeShoppingList(list);
         }
-        return null;
     }
 
     public void importShoppingList(){
