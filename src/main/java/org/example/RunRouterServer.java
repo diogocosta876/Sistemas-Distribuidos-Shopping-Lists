@@ -18,11 +18,23 @@ public class RunRouterServer {
     private final Gson gson;
     private final HashRing hashRing;
 
+    private boolean backUp;
+
     public RunRouterServer(int port) {
         gson = new Gson();
 
         this.clientSocket = context.createSocket(SocketType.ROUTER);
-        this.clientSocket.bind("tcp://*:" + port);
+        try{
+            this.clientSocket.bind("tcp://*:" + port);
+        }catch (ZMQException e){
+            if(e.getErrorCode() == 48){
+                port = 5554;
+                this.clientSocket.bind("tcp://*:" + port);
+                backUp = true;
+            }
+        }
+
+
 
         this.hashRing = new HashRing();
 
@@ -36,6 +48,10 @@ public class RunRouterServer {
 
     public void run() {
         System.out.println("Server Running");
+        if(backUp){
+            System.out.println("im the backup");
+        }
+
         while (!Thread.currentThread().isInterrupted()) {
             ZMsg msg = ZMsg.recvMsg(clientSocket);
             ZFrame identityFrame = msg.pop();
@@ -206,7 +222,7 @@ public class RunRouterServer {
     }
 
     public static void main(String[] args) {
-        RunRouterServer loadBalancer = new RunRouterServer(5555);
+        RunRouterServer loadBalancer = new RunRouterServer(5555);//5554
         loadBalancer.run();
     }
 }

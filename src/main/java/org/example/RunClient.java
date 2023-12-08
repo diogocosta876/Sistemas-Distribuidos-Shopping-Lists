@@ -33,15 +33,20 @@ public class RunClient {
     private final ZContext context;
     private final ZMQ.Poller poller;
 
+    private List<String> RouterAdresses;
+
     public RunClient() {
+        RouterAdresses = Arrays.asList("tcp://localhost:5555", "tcp://localhost:5554");
+
+
         this.listManager = null;
         this.scanner = new Scanner(System.in);
 
         this.context = new ZContext(1);
 
         this.socket = context.createSocket(SocketType.DEALER);
-        String serverAddress = "tcp://localhost:5555";
-        this.socket.connect(serverAddress);
+
+        this.socket.connect(RouterAdresses.get(0));
 
         this.poller = context.createPoller(1);
         poller.register(socket, ZMQ.Poller.POLLIN);
@@ -53,8 +58,8 @@ public class RunClient {
         socket.send(serializedPacket.getBytes(ZMQ.CHARSET), 0);
     }
 
-    public Packet receiveReply() {
-        int rc = poller.poll(5000); // Set timeout
+    public Packet receiveReply(int timeout) {
+        int rc = poller.poll(timeout); // Set timeout
         if (rc == -1) {
             System.out.println("[LOG] Error polling socket.");
             return null;
@@ -74,10 +79,12 @@ public class RunClient {
 
         sendRequest(new Packet(States.HANDSHAKE_INITIATED, null));
 
-        Packet reply = receiveReply();
-        if (reply.getState() == States.HANDSHAKE_COMPLETED) {
-            System.out.println("[LOG] Connection with server established.");
-            return true;
+        Packet reply = receiveReply(1000);
+        if(reply != null){
+            if (reply.getState() == States.HANDSHAKE_COMPLETED) {
+                System.out.println("[LOG] Connection with server established.");
+                return true;
+            }
         }
 
         return false;
@@ -281,10 +288,11 @@ public class RunClient {
             return;
         }
 
+
         String listJson = gson.toJson(list);
         Packet request = new Packet(States.LIST_UPDATE_REQUESTED_MAIN, listJson);
         sendRequest(request);
-        Packet reply = receiveReply();
+        Packet reply = receiveReply(5000);
 
         if (reply.getState() == States.LIST_UPDATE_COMPLETED) {
             System.out.println("[LOG] List updated successfully on the server.");
@@ -306,7 +314,7 @@ public class RunClient {
         //for now this method just fetches the lists from the server
         // TODO later it should compare the lists and update the server (CRDTS)
         sendRequest(new Packet(States.RETRIEVE_LISTS_REQUESTED, null));
-        Packet reply = receiveReply();
+        Packet reply = receiveReply(5000);
 
         if (reply.getState() == States.RETRIEVE_LISTS_COMPLETED) {
             System.out.println("[LOG] Lists retrieved successfully from the server.");
@@ -325,7 +333,7 @@ public class RunClient {
         String listId = scanner.nextLine();
 
         sendRequest(new Packet(States.RETRIEVE_LIST_REQUESTED_MAIN, listId));
-        Packet reply = receiveReply();
+        Packet reply = receiveReply(5000);
 
         if(reply.getState().equals(States.RETRIEVE_LIST_COMPLETED)){
             System.out.println("[LOG] List imported successfully.");
@@ -341,6 +349,17 @@ public class RunClient {
         }else{
             System.out.println("Unexpected response from server"); //TODO add messaging for client for him to know what happened
         }
+    }
+
+    private boolean confirmConnection(){
+        socket.connect(RouterAdresses.get(0));
+        if(!attemptHandshake()){
+            socket.connect(RouterAdresses.get(1));
+            if(!attemptHandshake()){
+                return false;
+            }
+        }
+        return true;
     }
 
     private void setConnectionMode(boolean online) {
