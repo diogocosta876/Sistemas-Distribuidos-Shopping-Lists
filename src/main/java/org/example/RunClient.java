@@ -27,7 +27,6 @@ public class RunClient {
     private ShoppingList selectedList;
 
     private final Scanner scanner;
-    private boolean online;
     private final Gson gson = new Gson();
 
     private final ZMQ.Socket socket;
@@ -56,6 +55,7 @@ public class RunClient {
 
     public void sendRequest(@NotNull Packet packet) {
         String serializedPacket = gson.toJson(packet);
+        System.out.println("Sending request: " + serializedPacket);
         socket.send(serializedPacket.getBytes(ZMQ.CHARSET), 0);
     }
 
@@ -289,16 +289,35 @@ public class RunClient {
             return;
         }
 
-        if(!confirmConnection()){//TODO fazer esta funcao dar DIOGO
-            System.out.println("Server unreachable");
-            return;
+        Packet reply = sendRequestToServer(list);
+        if (reply == null) {
+            System.out.println("[LOG] Switching to backup server...");
+            switchToBackupServer();
+            reply = sendRequestToServer(list);
+        }
+
+        processReply(reply);
+    }
+
+    private Packet sendRequestToServer(ShoppingList list) throws IOException {
+        if (!confirmConnection()) {
+            System.out.println("[LOG] Server unreachable.");
+            return null;
         }
 
         String listJson = gson.toJson(list);
         Packet request = new Packet(States.LIST_UPDATE_REQUESTED_MAIN, listJson);
         sendRequest(request);
-        Packet reply = receiveReply(5000);
-        System.out.println("Reply:" +reply);
+        return receiveReply(5000);
+    }
+
+    private void processReply(Packet reply) {
+        if (reply == null) {
+            System.out.println("[LOG] No response from server.");
+            return;
+        }
+
+        System.out.println("Reply: " + reply);
         if (reply.getState() == States.LIST_UPDATE_COMPLETED) {
             System.out.println("[LOG] List updated successfully on the server.");
             selectedList = gson.fromJson(reply.getMessageBody(), ShoppingList.class);
@@ -312,6 +331,20 @@ public class RunClient {
 
         } else {
             System.out.println("Unexpected response from server.");
+        }
+    }
+    public boolean confirmConnection() {
+        System.out.println("[LOG] Checking server connection...");
+
+        sendRequest(new Packet(States.HANDSHAKE_INITIATED, null));
+        Packet reply = receiveReply(1000);
+
+        if (reply != null && reply.getState() == States.HANDSHAKE_COMPLETED) {
+            System.out.println("[LOG] Connection with server confirmed.");
+            return true;
+        } else {
+            System.out.println("[LOG] No handshake confirmation from server.");
+            return false;
         }
     }
 
@@ -352,32 +385,20 @@ public class RunClient {
             selectedList = importedList;
             fillCurrentItems();
         }else{
-            System.out.println("Unexpected response from server"); //TODO add messaging for client for him to know what happened
+            System.out.println("Unexpected response from server");
         }
     }
 
-    private boolean confirmConnection(){
-        socket.connect(RouterAdresses.get(0));
+
+    private void switchToBackupServer() {
+        socket.disconnect(RouterAdresses.get(0));
+        socket.connect(RouterAdresses.get(1));
         this.poller = context.createPoller(1);
         poller.register(socket, ZMQ.Poller.POLLIN);
-        if(!attemptHandshake()){
-            socket.connect(RouterAdresses.get(1));
-            this.poller = context.createPoller(1);
-            poller.register(socket, ZMQ.Poller.POLLIN);
-            if(!attemptHandshake()){
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private void setConnectionMode(boolean online) {
-        this.online = online;
     }
 
     public static void main(String[] args) throws IOException {
         RunClient client = new RunClient();
-        client.setConnectionMode(client.attemptHandshake());
         client.run();
     }
 

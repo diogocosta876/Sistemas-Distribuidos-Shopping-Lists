@@ -34,11 +34,8 @@ public class RunRouterServer {
             }
         }
 
-
-
         this.hashRing = new HashRing();
 
-        //TODO check which servers are running and send them the hash ring
         discoverAndConnectToServers();
 
         //DEBUG

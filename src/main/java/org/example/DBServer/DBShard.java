@@ -21,7 +21,7 @@ public class DBShard {
     private final ZMQ.Socket socket;
     private HashRing hashRing;
 
-    private static final int NUM_UNIQUE_SERVERS_BACKUP = 3;
+    private static final int NUM_UNIQUE_SERVERS_BACKUP = 2;
 
 
     public DBShard(String shardFilePath, int port) {
