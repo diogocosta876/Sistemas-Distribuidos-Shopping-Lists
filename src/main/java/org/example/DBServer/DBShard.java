@@ -21,7 +21,7 @@ public class DBShard {
     private final ZMQ.Socket socket;
     private HashRing hashRing;
 
-    private static final int NUM_UNIQUE_SERVERS_BACKUP = 2;
+    private static final int NUM_UNIQUE_SERVERS_BACKUP = 3;
 
 
     public DBShard(String shardFilePath, int port) {
@@ -56,7 +56,7 @@ public class DBShard {
 
         String requestString = new String(contentFrame.getData(), ZMQ.CHARSET);
         Packet requestPacket = gson.fromJson(requestString, Packet.class);
-
+        System.out.println("[LOG] Received request: " + 2);
         Packet responsePacket;
         try {
             ShoppingList incomingList;
@@ -109,7 +109,9 @@ public class DBShard {
                     responsePacket = new Packet(States.HASH_RING_UPDATE_ACK, "Hash ring updated successfully");
                     break;
                 case DB_REDISTRIBUTE:
+                    System.out.println("[LOG] Received redistribution request");
                     redistributeListsOnRingUpdate();
+                    responsePacket = new Packet(States.NULL, "redistributed");
                     return;
                 case PING:
                     System.out.println("[LOG] Received ping request");
@@ -185,18 +187,21 @@ public class DBShard {
     }
 
     private Packet sendToServer(String serverAddress, Packet requestPacket) {
+        return sendToServer(serverAddress, requestPacket, true);
+    }
+    private Packet sendToServer(String serverAddress, Packet requestPacket, boolean debug) {
         try (ZMQ.Socket forwardSocket = context.createSocket(SocketType.DEALER)) {
             String requestString = gson.toJson(requestPacket);
             forwardSocket.connect(serverAddress);
             forwardSocket.send(requestString.getBytes(ZMQ.CHARSET), 0);
-            System.out.println("[LOG] Request forwarded to server: " + serverAddress);
+            if (debug) System.out.println("[LOG] Request forwarded to server: " + serverAddress);
 
             forwardSocket.setReceiveTimeOut(1000);
 
             byte[] responseBytes = forwardSocket.recv(0);
             if (responseBytes != null) {
                 String responseString = new String(responseBytes, ZMQ.CHARSET);
-                System.out.println("[LOG] Received response from server: " + serverAddress);
+                if (debug) System.out.println("[LOG] Received response from server: " + serverAddress);
                 return gson.fromJson(responseString, Packet.class);
             } else {
                 return null;
@@ -238,27 +243,21 @@ public class DBShard {
             System.out.println("Error while redistributing lists: " + e.getMessage());
         }
     }
-
     private void requestRedistributionOnStartup() {
         try {
-            Map<Integer, String> serverInfo = hashRing.getServer(""); // Use a generic key to get server info
+            Map<Integer, String> serverInfo = hashRing.getServer("");
             Integer currentHash = serverInfo.keySet().iterator().next();
 
             Set<String> targetServers = new HashSet<>();
             int numServersChecked = 0;
 
-            while (targetServers.size() < 2 && numServersChecked < hashRing.getRing().size()) {
+            while (targetServers.size() < 10  && numServersChecked < hashRing.getRing().size()) {
                 Map<Integer, String> nextServerInfo = hashRing.getNextNthServer(currentHash, numServersChecked++);
                 String nextServerAddress = nextServerInfo.values().iterator().next();
 
                 if (nextServerAddress != null && !nextServerAddress.equals("tcp://localhost:" + port) && targetServers.add(nextServerAddress)) {
-                    try (ZMQ.Socket forwardSocket = context.createSocket(SocketType.DEALER)) {
-                        forwardSocket.connect(nextServerAddress);
-                        Packet redistributePacket = new Packet(States.DB_REDISTRIBUTE, "");
-                        forwardSocket.send(gson.toJson(redistributePacket).getBytes(ZMQ.CHARSET), 0);
-                    } catch (Exception e) {
-                        System.out.println("Error sending redistribution request to server " + nextServerAddress + ": " + e.getMessage());
-                    }
+                    Packet redistributePacket = new Packet(States.DB_REDISTRIBUTE, "");
+                    sendToServer(nextServerAddress, redistributePacket, false);
                 }
             }
         } catch (Exception e) {

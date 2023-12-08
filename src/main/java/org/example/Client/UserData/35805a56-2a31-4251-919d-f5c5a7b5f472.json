@@ -1,0 +1,17 @@
+{
+  "uuid": "35805a56-2a31-4251-919d-f5c5a7b5f472",
+  "lists": [
+    {
+      "listId": "fcff6c99-c201-4a15-8b08-6d2ae001acf9",
+      "listName": "teste",
+      "itemList": {
+        "azeitonas": {
+          "itemName": "azeitonas",
+          "quantity": 1,
+          "timestamp": 0,
+          "userId": "35805a56-2a31-4251-919d-f5c5a7b5f472"
+        }
+      }
+    }
+  ]
+}

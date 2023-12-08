@@ -1,25 +1,13 @@
 [
   {
-    "listId": "6f9ac113-5f9b-44d4-9947-80ec94acff82",
-    "listName": "pingo doce",
+    "listId": "fcff6c99-c201-4a15-8b08-6d2ae001acf9",
+    "listName": "teste",
     "itemList": {
-      "pao": {
-        "itemName": "pao",
+      "azeitonas": {
+        "itemName": "azeitonas",
         "quantity": 1,
         "timestamp": 0,
-        "userId": "d73f2ac9-ddc0-4e0d-9b9e-51c721483341"
-      },
-      "queijo": {
-        "itemName": "queijo",
-        "quantity": 1,
-        "timestamp": 0,
-        "userId": "d73f2ac9-ddc0-4e0d-9b9e-51c721483341"
-      },
-      "bananas": {
-        "itemName": "bananas",
-        "quantity": 0,
-        "timestamp": 1,
-        "userId": "6555d6e9-6a64-4dd5-8a5d-b03af4c4e431"
+        "userId": "35805a56-2a31-4251-919d-f5c5a7b5f472"
       }
     }
   }

@@ -99,7 +99,7 @@ public class RunRouterServer {
 
         Map<Integer, String> serverInfo = hashRing.getServer(listID);
         int attempt = 0;
-        int maxAttempts = 3;
+        int maxAttempts = 5;
 
         while (attempt < maxAttempts) {
             Map.Entry<Integer, String> entry = serverInfo.entrySet().iterator().next();
