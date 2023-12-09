@@ -56,7 +56,7 @@ public class DBShard {
 
         String requestString = new String(contentFrame.getData(), ZMQ.CHARSET);
         Packet requestPacket = gson.fromJson(requestString, Packet.class);
-        System.out.println("[LOG] Received request: " + 2);
+        System.out.println("[LOG] Received request: " + requestPacket.getState());
         Packet responsePacket;
         try {
             ShoppingList incomingList;
