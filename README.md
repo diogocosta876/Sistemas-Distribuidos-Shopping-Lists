@@ -17,4 +17,4 @@ Make sure to allow multiple instances for every one:
 
 ![Alt text](docs/readme_images/image.png)
 
-Make sure to run the DB first, then the Router and only then the client
+Make sure to run the DB first and only then the Router in order for the hashring to be recognized
